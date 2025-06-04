@@ -53,14 +53,14 @@
     },
     "vmName": {
       "type": "string",
-      "defaultValue": "win22-server",
+      "defaultValue": "DC",
       "metadata": {
         "description": "Name of the Windows Server VM"
       }
     },
     "vmSize": {
       "type": "string",
-      "defaultValue": "Standard_D2s_v3",
+      "defaultValue": "Standard_D2s_v4",
       "metadata": {
         "description": "Size of the Windows Server VM"
       }
@@ -75,6 +75,20 @@
       "type": "securestring",
       "metadata": {
         "description": "Admin password for the VM"
+      }
+    },
+    "clientVmName": {
+      "type": "string",
+      "defaultValue": "WIN11",
+      "metadata": {
+        "description": "Name of the Windows 11 client VM"
+      }
+    },
+    "clientVmSize": {
+      "type": "string",
+      "defaultValue": "Standard_D4s_v4",
+      "metadata": {
+        "description": "Size of the Windows 11 client VM"
       }
     },
     "fileShareName": {
@@ -111,7 +125,10 @@
     "spokeSubnetName": "default",
     "publicIPAddressName": "[concat(parameters('vmName'), '-pip')]",
     "networkInterfaceName": "[concat(parameters('vmName'), '-nic')]",
-    "networkSecurityGroupName": "[concat(parameters('vmName'), '-nsg')]"
+    "networkSecurityGroupName": "[concat(parameters('vmName'), '-nsg')]",
+    "clientPublicIPAddressName": "[concat(parameters('clientVmName'), '-pip')]",
+    "clientNetworkInterfaceName": "[concat(parameters('clientVmName'), '-nic')]",
+    "clientNetworkSecurityGroupName": "[concat(parameters('clientVmName'), '-nsg')]"
   },
   "resources": [
     {
@@ -351,6 +368,116 @@
         "shareQuota": "[parameters('fileShareQuota')]",
         "enabledProtocols": "SMB"
       }
+    },
+      {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2022-07-01",
+      "name": "[variables('clientPublicIPAddressName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static",
+        "dnsSettings": {
+          "domainNameLabel": "[toLower(concat(parameters('clientVmName'), uniqueString(resourceGroup().id)))]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2022-07-01",
+      "name": "[variables('clientNetworkSecurityGroupName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "RDP",
+            "properties": {
+              "priority": 1000,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "3389"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2022-07-01",
+      "name": "[variables('clientNetworkInterfaceName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('clientPublicIPAddressName'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('clientNetworkSecurityGroupName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('spokeVnetName'))]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('clientPublicIPAddressName'))]"
+              },
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('spokeVnetName'), variables('spokeSubnetName'))]"
+              }
+            }
+          }
+        ],
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('clientNetworkSecurityGroupName'))]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2022-11-01",
+      "name": "[parameters('clientVmName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('clientNetworkInterfaceName'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('clientVmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('clientVmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "MicrosoftWindowsDesktop",
+            "offer": "windows-11",
+            "sku": "win11-24h2-pro",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "[concat(parameters('clientVmName'), '-osdisk')]",
+            "caching": "ReadWrite",
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            }
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('clientNetworkInterfaceName'))]"
+            }
+          ]
+        }
+      }
     }
   ],
   "outputs": {
@@ -365,6 +492,10 @@
     "fileShareEndpoint": {
       "type": "string",
       "value": "[concat('\\\\', reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))).primaryEndpoints.file, parameters('fileShareName'))]"
+    },
+     "clientVmFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('clientPublicIPAddressName'))).dnsSettings.fqdn]"
     }
   }
 }
