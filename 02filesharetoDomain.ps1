@@ -15,13 +15,15 @@ param(
 [string]$DomainName = "corp.example.com"                          # Your domain FQDN
 )
 
+
 # Login to Azure
 Write-Host "Connecting to Azure..." -ForegroundColor Cyan
 Connect-AzAccount
 Set-AzContext -Subscription $SubscriptionId
 
-# Get the storage account key and create a context
+# Get the storage account and create a context
 Write-Host "Getting storage account context..." -ForegroundColor Cyan
+$storageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName
 $storageAccountKey = (Get-AzStorageAccountKey -ResourceGroupName $ResourceGroupName -Name $StorageAccountName)[0].Value
 $ctx = New-AzStorageContext -StorageAccountName $StorageAccountName -StorageAccountKey $storageAccountKey
 
@@ -53,16 +55,13 @@ New-Object System.Management.Automation.PSCredential -ArgumentList "Azure\$Stora
 Write-Host "Storage account credentials saved to $credentialFile" -ForegroundColor Green
 
 # Function to create a persistent drive mapping that will survive reboots
-# Change from Create-PersistentDriveMapping to New-PersistentDriveMapping
-function New-PersistentDriveMapping {
+function Create-PersistentDriveMapping {
     param (
         [string]$DriveLetter,
         [string]$UncPath,
         [string]$Username,
-        [System.Security.SecureString]$Password
+        [string]$Password
     )
-    # ... rest of the function remains the same ...
-
     
     # Remove existing drive mapping if present
     if (Test-Path "${DriveLetter}:") {
@@ -73,8 +72,7 @@ function New-PersistentDriveMapping {
     
     # Create the persistent mapping
     Write-Host "Creating drive mapping ${DriveLetter}: -> $UncPath..." -ForegroundColor Cyan
-    $passwordPlain = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password))
-    $result = net use ${DriveLetter}: $UncPath /user:$Username $passwordPlain /persistent:yes
+    $result = net use ${DriveLetter}: $UncPath /user:$Username $Password /persistent:yes
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Successfully mapped drive ${DriveLetter}: to $UncPath" -ForegroundColor Green
     } else {
@@ -86,25 +84,21 @@ function New-PersistentDriveMapping {
 $uncPath = "\\$StorageAccountName.file.core.windows.net\$FileShareName"
 
 # Optional: Map the Azure file share as a network drive
+if ($DriveLetter) {
     Write-Host "Mapping Azure file share to drive ${DriveLetter}:..." -ForegroundColor Cyan
-    $secureStorageKey = ConvertTo-SecureString -String $storageAccountKey -AsPlainText -Force
-    New-PersistentDriveMapping -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $secureStorageKey
     Create-PersistentDriveMapping -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $storageAccountKey
-
+}
 
 # Function to create a script that can be run by end users to map the drive
-function New-MappingScript {
+function Create-MappingScript {
     param (
         [string]$DriveLetter,
         [string]$UncPath,
         [string]$Username,
-        [System.Security.SecureString]$Password,
+        [string]$Password,
         [string]$OutputPath = "$env:USERPROFILE\Desktop\MapAzureDrive.ps1"
     )
     
-    # Convert SecureString to plain text for the script
-    $passwordPlain = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password))
-}
     $scriptContent = @"
 # Script to map Azure File Share
 # Created: $(Get-Date -Format "yyyy-MM-dd")
@@ -113,7 +107,7 @@ function New-MappingScript {
 `$DriveLetter = "$DriveLetter"
 `$UncPath = "$UncPath"
 `$Username = "$Username"
-`$Password = "$passwordPlain"
+`$Password = "$Password"
 
 # Remove existing drive mapping if present
 if (Test-Path "`${DriveLetter}:") {
@@ -136,18 +130,17 @@ Write-Host "Press any key to continue..."
 "@
 
     $scriptContent | Out-File -FilePath $OutputPath -Encoding utf8
+    Write-Host "Created mapping script at $OutputPath" -ForegroundColor Green
+}
+
 # Create a user-friendly mapping script
-$secureKey = ConvertTo-SecureString -String $storageAccountKey -AsPlainText -Force
-New-MappingScript -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $secureKey -OutputPath "$env:USERPROFILE\Desktop\MapAzureDrive.ps1"
+Create-MappingScript -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $storageAccountKey -OutputPath "$env:USERPROFILE\Desktop\MapAzureDrive.ps1"
 
 # Create a logon script for Group Policy deployment
 $logonScriptPath = "$env:WINDIR\SYSVOL\sysvol\$DomainName\scripts"
 if (Test-Path -Path $logonScriptPath) {
     $gpoScriptPath = "$logonScriptPath\MapAzureDrive.ps1"
-    New-MappingScript -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $secureKey -OutputPath $gpoScriptPath
-}if (Test-Path -Path $logonScriptPath) {
-    $gpoScriptPath = "$logonScriptPath\MapAzureDrive.ps1"
-    New-MappingScript -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $storageAccountKey -OutputPath $gpoScriptPath
+    Create-MappingScript -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $storageAccountKey -OutputPath $gpoScriptPath
     Write-Host "Created GPO logon script at $gpoScriptPath" -ForegroundColor Green
 } else {
     Write-Host "SYSVOL path not accessible. Run this script on a domain controller to create a GPO logon script." -ForegroundColor Yellow
