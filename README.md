@@ -1,4 +1,4 @@
-# Minimal Start - Azure Hub-Spoke Deployment
+# Minimal Start
 
 This repository contains ARM templates for deploying:
 - Hub-spoke network architecture with two VNets
