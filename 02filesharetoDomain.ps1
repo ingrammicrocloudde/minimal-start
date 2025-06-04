@@ -1,27 +1,27 @@
 # PowerShell script to integrate Azure Premium File Storage account into a domain
 # Modified: 2025-06-04
-# User: aktapaz
 # Makes connections using storage account key authentication (no Azure AD Domain Services)
 # Run this script as Administrator on a domain-joined machine
 
 # Azure File Share Variables - change these as needed
 param(
-$SubscriptionId = "00000000-0000-0000-0000-000000000000" # Your Azure subscription ID
-$ResourceGroupName = "YourResourceGroup"                 # Resource group containing the storage account
-$StorageAccountName = "yourstorageaccount"               # Azure storage account name
-$FileShareName = "premiumshare"                          # Name of the Azure file share
-$DriveLetter = "Z"                                       # Drive letter to map the share to (optional)
+[string]$SubscriptionId = "00000000-0000-0000-0000-000000000000", # Your Azure subscription ID
+[string]$ResourceGroupName = "YourResourceGroup",                 # Resource group containing the storage account
+[string]$StorageAccountName = "yourstorageaccount",               # Azure storage account name
+[string]$FileShareName = "premiumshare",                          # Name of the Azure file share
+[string]$DriveLetter = "Z",
+[string]$Username = "aktapaz",                                    # Drive letter to map the share to (optional)
 # Domain Variables
-$DomainName = "corp.example.com"                         # Your domain FQDN
+[string]$DomainName = "corp.example.com"                          # Your domain FQDN
 )
+
 # Login to Azure
 Write-Host "Connecting to Azure..." -ForegroundColor Cyan
 Connect-AzAccount
 Set-AzContext -Subscription $SubscriptionId
 
-# Get the storage account and create a context
+# Get the storage account key and create a context
 Write-Host "Getting storage account context..." -ForegroundColor Cyan
-$storageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName
 $storageAccountKey = (Get-AzStorageAccountKey -ResourceGroupName $ResourceGroupName -Name $StorageAccountName)[0].Value
 $ctx = New-AzStorageContext -StorageAccountName $StorageAccountName -StorageAccountKey $storageAccountKey
 
@@ -53,13 +53,16 @@ New-Object System.Management.Automation.PSCredential -ArgumentList "Azure\$Stora
 Write-Host "Storage account credentials saved to $credentialFile" -ForegroundColor Green
 
 # Function to create a persistent drive mapping that will survive reboots
-function Create-PersistentDriveMapping {
+# Change from Create-PersistentDriveMapping to New-PersistentDriveMapping
+function New-PersistentDriveMapping {
     param (
         [string]$DriveLetter,
         [string]$UncPath,
         [string]$Username,
-        [string]$Password
+        [System.Security.SecureString]$Password
     )
+    # ... rest of the function remains the same ...
+
     
     # Remove existing drive mapping if present
     if (Test-Path "${DriveLetter}:") {
@@ -70,7 +73,8 @@ function Create-PersistentDriveMapping {
     
     # Create the persistent mapping
     Write-Host "Creating drive mapping ${DriveLetter}: -> $UncPath..." -ForegroundColor Cyan
-    $result = net use ${DriveLetter}: $UncPath /user:$Username $Password /persistent:yes
+    $passwordPlain = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password))
+    $result = net use ${DriveLetter}: $UncPath /user:$Username $passwordPlain /persistent:yes
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Successfully mapped drive ${DriveLetter}: to $UncPath" -ForegroundColor Green
     } else {
@@ -82,21 +86,25 @@ function Create-PersistentDriveMapping {
 $uncPath = "\\$StorageAccountName.file.core.windows.net\$FileShareName"
 
 # Optional: Map the Azure file share as a network drive
-if ($DriveLetter) {
     Write-Host "Mapping Azure file share to drive ${DriveLetter}:..." -ForegroundColor Cyan
+    $secureStorageKey = ConvertTo-SecureString -String $storageAccountKey -AsPlainText -Force
+    New-PersistentDriveMapping -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $secureStorageKey
     Create-PersistentDriveMapping -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $storageAccountKey
-}
+
 
 # Function to create a script that can be run by end users to map the drive
-function Create-MappingScript {
+function New-MappingScript {
     param (
         [string]$DriveLetter,
         [string]$UncPath,
         [string]$Username,
-        [string]$Password,
+        [System.Security.SecureString]$Password,
         [string]$OutputPath = "$env:USERPROFILE\Desktop\MapAzureDrive.ps1"
     )
     
+    # Convert SecureString to plain text for the script
+    $passwordPlain = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password))
+}
     $scriptContent = @"
 # Script to map Azure File Share
 # Created: $(Get-Date -Format "yyyy-MM-dd")
@@ -105,7 +113,7 @@ function Create-MappingScript {
 `$DriveLetter = "$DriveLetter"
 `$UncPath = "$UncPath"
 `$Username = "$Username"
-`$Password = "$Password"
+`$Password = "$passwordPlain"
 
 # Remove existing drive mapping if present
 if (Test-Path "`${DriveLetter}:") {
@@ -128,17 +136,18 @@ Write-Host "Press any key to continue..."
 "@
 
     $scriptContent | Out-File -FilePath $OutputPath -Encoding utf8
-    Write-Host "Created mapping script at $OutputPath" -ForegroundColor Green
-}
-
 # Create a user-friendly mapping script
-Create-MappingScript -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $storageAccountKey -OutputPath "$env:USERPROFILE\Desktop\MapAzureDrive.ps1"
+$secureKey = ConvertTo-SecureString -String $storageAccountKey -AsPlainText -Force
+New-MappingScript -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $secureKey -OutputPath "$env:USERPROFILE\Desktop\MapAzureDrive.ps1"
 
 # Create a logon script for Group Policy deployment
 $logonScriptPath = "$env:WINDIR\SYSVOL\sysvol\$DomainName\scripts"
 if (Test-Path -Path $logonScriptPath) {
     $gpoScriptPath = "$logonScriptPath\MapAzureDrive.ps1"
-    Create-MappingScript -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $storageAccountKey -OutputPath $gpoScriptPath
+    New-MappingScript -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $secureKey -OutputPath $gpoScriptPath
+}if (Test-Path -Path $logonScriptPath) {
+    $gpoScriptPath = "$logonScriptPath\MapAzureDrive.ps1"
+    New-MappingScript -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $storageAccountKey -OutputPath $gpoScriptPath
     Write-Host "Created GPO logon script at $gpoScriptPath" -ForegroundColor Green
 } else {
     Write-Host "SYSVOL path not accessible. Run this script on a domain controller to create a GPO logon script." -ForegroundColor Yellow
@@ -178,4 +187,4 @@ if (Test-Path "${DriveLetter}:") {
 }
 
 Write-Host "`nAzure Premium File Storage account integration completed!" -ForegroundColor Green
-Write-Host "Script executed by: aktapaz on $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")" -ForegroundColor Gray
+Write-Host "Script executed by: $Username on $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")" -ForegroundColor Gray
