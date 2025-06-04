@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "eastus"
+    },
+    "hubVnetName": {
+      "value": "hub-vnet"
+    },
+    "spokeVnetName": {
+      "value": "spoke-vnet"
+    },
+    "hubAddressPrefix": {
+      "value": "10.0.0.0/16"
+    },
+    "spokeAddressPrefix": {
+      "value": "10.1.0.0/16"
+    },
+    "hubDefaultSubnetPrefix": {
+      "value": "10.0.0.0/24"
+    },
+    "spokeDefaultSubnetPrefix": {
+      "value": "10.1.0.0/24"
+    },
+    "vmName": {
+      "value": "win22-server"
+    },
+    "vmSize": {
+      "value": "Standard_D2s_v3"
+    },
+    "adminUsername": {
+      "value": "azureadmin"
+    },
+    "adminPassword": {
+      "value": null
+    },
+    "fileShareName": {
+      "value": "premiumfileshare"
+    },
+    "fileShareQuota": {
+      "value": 100
+    }
+  }
+}
