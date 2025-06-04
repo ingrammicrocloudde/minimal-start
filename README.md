@@ -6,6 +6,7 @@ This repository contains ARM templates for deploying:
 - Premium file storage
 - promote vm to DC
 - domain join fileshare
+- add second vm (win11) to be made session host later. 
 
 ## Deploy to Azure
 

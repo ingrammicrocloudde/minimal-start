@@ -1,19 +1,21 @@
 # PowerShell script to integrate Azure Premium File Storage account into a domain
 # Modified: 2025-06-04
-# User: aktapaz
 # Makes connections using storage account key authentication (no Azure AD Domain Services)
 # Run this script as Administrator on a domain-joined machine
 
 # Azure File Share Variables - change these as needed
 param(
-$SubscriptionId = "00000000-0000-0000-0000-000000000000" # Your Azure subscription ID
-$ResourceGroupName = "YourResourceGroup"                 # Resource group containing the storage account
-$StorageAccountName = "yourstorageaccount"               # Azure storage account name
-$FileShareName = "premiumshare"                          # Name of the Azure file share
-$DriveLetter = "Z"                                       # Drive letter to map the share to (optional)
+[string]$SubscriptionId = "00000000-0000-0000-0000-000000000000", # Your Azure subscription ID
+[string]$ResourceGroupName = "YourResourceGroup",                 # Resource group containing the storage account
+[string]$StorageAccountName = "yourstorageaccount",               # Azure storage account name
+[string]$FileShareName = "premiumshare",                          # Name of the Azure file share
+[string]$DriveLetter = "Z",
+[string]$Username = "aktapaz",                                    # Drive letter to map the share to (optional)
 # Domain Variables
-$DomainName = "corp.example.com"                         # Your domain FQDN
+[string]$DomainName = "corp.example.com"                          # Your domain FQDN
 )
+
+
 # Login to Azure
 Write-Host "Connecting to Azure..." -ForegroundColor Cyan
 Connect-AzAccount
@@ -178,4 +180,4 @@ if (Test-Path "${DriveLetter}:") {
 }
 
 Write-Host "`nAzure Premium File Storage account integration completed!" -ForegroundColor Green
-Write-Host "Script executed by: aktapaz on $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")" -ForegroundColor Gray
+Write-Host "Script executed by: $Username on $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")" -ForegroundColor Gray
