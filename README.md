@@ -4,6 +4,8 @@ This repository contains ARM templates for deploying:
 - Hub-spoke network architecture with two VNets
 - Windows Server 2022 VM with public IP in the hub network
 - Premium file storage
+- promote vm to DC
+- domain join fileshare
 
 ## Deploy to Azure
 
