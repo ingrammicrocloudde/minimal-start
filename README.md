@@ -6,6 +6,12 @@
 ## Deployment options: 
 
 **Azure CLI:**
-
 ```sh
 az deployment group create --resource-group YourResourceGroup --template-file deploy.json --parameters parameters.json
+```
+or
+
+**PowerShell:**
+```ps
+New-AzResourceGroupDeployment -ResourceGroupName YourResourceGroup -TemplateFile deploy.json -TemplateParameterFile parameters.json
+```
