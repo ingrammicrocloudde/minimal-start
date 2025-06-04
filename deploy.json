@@ -86,7 +86,7 @@
     },
     "storageAccountName": {
       "type": "string",
-      "defaultValue": "[concat('premiumstorage', uniqueString(resourceGroup().id))]",
+      "defaultValue": "[concat('ps', uniqueString(resourceGroup().id))]",
       "metadata": {
         "description": "Storage account name for premium file storage"
       }
