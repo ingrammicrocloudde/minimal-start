@@ -11,6 +11,12 @@ Click the button below to deploy this template to your Azure subscription:
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Faktapaz%2Fminimal-start%2Fmain%2Fdeploy.json)
 
+## Visualize Architecture
+
+Click the button below to visualize the resources deployed by this template:
+
+[![Visualize](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/visualizebutton.svg?sanitize=true)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com%2Faktapaz%2Fminimal-start%2Fmain%2Fdeploy.json)
+
 ## Parameters
 
 You can customize the deployment with these parameters:
