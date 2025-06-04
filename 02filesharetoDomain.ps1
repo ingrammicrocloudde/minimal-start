@@ -5,15 +5,15 @@
 # Run this script as Administrator on a domain-joined machine
 
 # Azure File Share Variables - change these as needed
+param(
 $SubscriptionId = "00000000-0000-0000-0000-000000000000" # Your Azure subscription ID
 $ResourceGroupName = "YourResourceGroup"                 # Resource group containing the storage account
 $StorageAccountName = "yourstorageaccount"               # Azure storage account name
 $FileShareName = "premiumshare"                          # Name of the Azure file share
 $DriveLetter = "Z"                                       # Drive letter to map the share to (optional)
-
 # Domain Variables
 $DomainName = "corp.example.com"                         # Your domain FQDN
-
+)
 # Login to Azure
 Write-Host "Connecting to Azure..." -ForegroundColor Cyan
 Connect-AzAccount
