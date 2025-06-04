@@ -1,5 +1,8 @@
 # PowerShell script to integrate Azure Premium File Storage account into a domain
-# Make sure to run this script as Administrator on a domain-joined machine
+# Modified: 2025-06-04
+# User: aktapaz
+# Makes connections using storage account key authentication (no Azure AD Domain Services)
+# Run this script as Administrator on a domain-joined machine
 
 # Azure File Share Variables - change these as needed
 $SubscriptionId = "00000000-0000-0000-0000-000000000000" # Your Azure subscription ID
@@ -10,8 +13,6 @@ $DriveLetter = "Z"                                       # Drive letter to map t
 
 # Domain Variables
 $DomainName = "corp.example.com"                         # Your domain FQDN
-$DomainAdminsGroup = "$DomainName\Domain Admins"         # Domain Admins group
-$DomainUsersGroup = "$DomainName\Domain Users"           # Domain Users group
 
 # Login to Azure
 Write-Host "Connecting to Azure..." -ForegroundColor Cyan
@@ -33,18 +34,9 @@ if (-not $share) {
     Write-Host "Azure file share $FileShareName already exists" -ForegroundColor Yellow
 }
 
-# Enable Azure AD Domain Services authentication for the storage account
-Write-Host "Enabling Azure AD Domain Services authentication for the storage account..." -ForegroundColor Cyan
-Update-AzStorageAccountAuthForAES256 -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName
-
-# Get storage account
-$storageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName
-
-# Enable AD authentication on the storage account
-Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -EnableActiveDirectoryDomainServicesForFile $true -ActiveDirectoryDomainName $DomainName
-
 # Install required modules if not already installed
 if (-not (Get-Module -ListAvailable -Name Az.Storage)) {
+    Write-Host "Installing Az.Storage module..." -ForegroundColor Cyan
     Install-Module -Name Az.Storage -Force -AllowClobber
 }
 
@@ -71,11 +63,13 @@ function Create-PersistentDriveMapping {
     
     # Remove existing drive mapping if present
     if (Test-Path "${DriveLetter}:") {
+        Write-Host "Removing existing drive mapping ${DriveLetter}:..." -ForegroundColor Yellow
         Remove-PSDrive -Name $DriveLetter -Force -ErrorAction SilentlyContinue
         net use ${DriveLetter}: /delete /y
     }
     
     # Create the persistent mapping
+    Write-Host "Creating drive mapping ${DriveLetter}: -> $UncPath..." -ForegroundColor Cyan
     $result = net use ${DriveLetter}: $UncPath /user:$Username $Password /persistent:yes
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Successfully mapped drive ${DriveLetter}: to $UncPath" -ForegroundColor Green
@@ -93,7 +87,64 @@ if ($DriveLetter) {
     Create-PersistentDriveMapping -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $storageAccountKey
 }
 
-# Create a group policy to map the drive for domain users (requires Group Policy Management tools)
+# Function to create a script that can be run by end users to map the drive
+function Create-MappingScript {
+    param (
+        [string]$DriveLetter,
+        [string]$UncPath,
+        [string]$Username,
+        [string]$Password,
+        [string]$OutputPath = "$env:USERPROFILE\Desktop\MapAzureDrive.ps1"
+    )
+    
+    $scriptContent = @"
+# Script to map Azure File Share
+# Created: $(Get-Date -Format "yyyy-MM-dd")
+
+# Map the Azure file share as a drive
+`$DriveLetter = "$DriveLetter"
+`$UncPath = "$UncPath"
+`$Username = "$Username"
+`$Password = "$Password"
+
+# Remove existing drive mapping if present
+if (Test-Path "`${DriveLetter}:") {
+    Remove-PSDrive -Name `$DriveLetter -Force -ErrorAction SilentlyContinue
+    net use `${DriveLetter}: /delete /y
+}
+
+# Create the persistent mapping
+Write-Host "Mapping Azure file share to drive `${DriveLetter}:..."
+`$result = net use `${DriveLetter}: `$UncPath /user:`$Username `$Password /persistent:yes
+
+if (`$LASTEXITCODE -eq 0) {
+    Write-Host "Successfully mapped drive `${DriveLetter}: to `$UncPath" -ForegroundColor Green
+} else {
+    Write-Host "Failed to map drive `${DriveLetter}: to `$UncPath. Error: `$result" -ForegroundColor Red
+}
+
+Write-Host "Press any key to continue..."
+`$null = `$Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+"@
+
+    $scriptContent | Out-File -FilePath $OutputPath -Encoding utf8
+    Write-Host "Created mapping script at $OutputPath" -ForegroundColor Green
+}
+
+# Create a user-friendly mapping script
+Create-MappingScript -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $storageAccountKey -OutputPath "$env:USERPROFILE\Desktop\MapAzureDrive.ps1"
+
+# Create a logon script for Group Policy deployment
+$logonScriptPath = "$env:WINDIR\SYSVOL\sysvol\$DomainName\scripts"
+if (Test-Path -Path $logonScriptPath) {
+    $gpoScriptPath = "$logonScriptPath\MapAzureDrive.ps1"
+    Create-MappingScript -DriveLetter $DriveLetter -UncPath $uncPath -Username "Azure\$StorageAccountName" -Password $storageAccountKey -OutputPath $gpoScriptPath
+    Write-Host "Created GPO logon script at $gpoScriptPath" -ForegroundColor Green
+} else {
+    Write-Host "SYSVOL path not accessible. Run this script on a domain controller to create a GPO logon script." -ForegroundColor Yellow
+}
+
+# Instructions for Group Policy deployment
 Write-Host "`nTo create a GPO to map this drive for domain users:" -ForegroundColor Yellow
 Write-Host "1. Install Group Policy Management tools: Install-WindowsFeature -Name GPMC" -ForegroundColor Gray
 Write-Host "2. Create a new GPO and edit it" -ForegroundColor Gray
@@ -106,11 +157,25 @@ Write-Host "   - Reconnect: Enabled" -ForegroundColor Gray
 Write-Host "   - Connect as: Azure\$StorageAccountName" -ForegroundColor Gray
 Write-Host "   - Enter the storage account key as the password" -ForegroundColor Gray
 
-# Instructions for Azure AD Kerberos authentication setup
-Write-Host "`nFor Azure AD Kerberos authentication (recommended for domain-joined computers):" -ForegroundColor Yellow
-Write-Host "1. Run Set-AzStorageAccount with the following parameters:" -ForegroundColor Gray
-Write-Host "   Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -EnableAzureActiveDirectoryKerberosForFile `$true -ActiveDirectoryDomainName $DomainName" -ForegroundColor Gray
-Write-Host "2. Assign the 'Storage File Data SMB Share Contributor' role to the appropriate AD groups" -ForegroundColor Gray
-Write-Host "   New-AzRoleAssignment -RoleDefinitionName 'Storage File Data SMB Share Contributor' -ApplicationId 'Provide your application ID' -ResourceName $StorageAccountName -ResourceType 'Microsoft.Storage/storageAccounts' -ResourceGroupName $ResourceGroupName" -ForegroundColor Gray
+# Alternatively, use the PowerShell logon script method
+Write-Host "`nAlternatively, to use the PowerShell script for GPO:" -ForegroundColor Yellow
+Write-Host "1. In Group Policy Management, edit your GPO" -ForegroundColor Gray
+Write-Host "2. Under User Configuration > Policies > Windows Settings > Scripts > Logon" -ForegroundColor Gray
+Write-Host "3. Add a new PowerShell script and browse to $gpoScriptPath" -ForegroundColor Gray
+
+# Test the connection
+Write-Host "`nTesting connection to Azure file share..." -ForegroundColor Cyan
+if (Test-Path "${DriveLetter}:") {
+    Write-Host "Connection successful! Drive ${DriveLetter}: is mapped to Azure file share." -ForegroundColor Green
+    
+    # Get some basic information about the share
+    $driveInfo = Get-PSDrive -Name $DriveLetter
+    Write-Host "Drive Information:" -ForegroundColor Cyan
+    Write-Host "  Free Space: $([math]::Round($driveInfo.Free / 1GB, 2)) GB" -ForegroundColor Gray
+    Write-Host "  Used Space: $([math]::Round(($driveInfo.Used / 1GB), 2)) GB" -ForegroundColor Gray
+} else {
+    Write-Host "Connection test failed. Please check your storage account credentials and network connectivity." -ForegroundColor Red
+}
 
 Write-Host "`nAzure Premium File Storage account integration completed!" -ForegroundColor Green
+Write-Host "Script executed by: aktapaz on $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")" -ForegroundColor Gray
