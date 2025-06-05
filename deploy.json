@@ -214,8 +214,11 @@
       "apiVersion": "2022-07-01",
       "name": "[variables('publicIPAddressName')]",
       "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard"
+      },
       "properties": {
-        "publicIPAllocationMethod": "Dynamic",
+        "publicIPAllocationMethod": "static",
         "dnsSettings": {
           "domainNameLabel": "[toLower(concat(parameters('vmName'), uniqueString(resourceGroup().id)))]"
         }
@@ -275,47 +278,54 @@
       }
     },
     {
-      "type": "Microsoft.Compute/virtualMachines",
-      "apiVersion": "2022-11-01",
-      "name": "[parameters('vmName')]",
-      "location": "[parameters('location')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
-      ],
-      "properties": {
-        "hardwareProfile": {
-          "vmSize": "[parameters('vmSize')]"
-        },
-        "osProfile": {
-          "computerName": "[parameters('vmName')]",
-          "adminUsername": "[parameters('adminUsername')]",
-          "adminPassword": "[parameters('adminPassword')]"
-        },
-        "storageProfile": {
-          "imageReference": {
-            "publisher": "MicrosoftWindowsServer",
-            "offer": "WindowsServer",
-            "sku": "2022-Datacenter",
-            "version": "latest"
-          },
-          "osDisk": {
-            "name": "[concat(parameters('vmName'), '-osdisk')]",
-            "caching": "ReadWrite",
-            "createOption": "FromImage",
-            "managedDisk": {
-              "storageAccountType": "Premium_LRS"
-            }
-          }
-        },
-        "networkProfile": {
-          "networkInterfaces": [
-            {
-              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
-            }
-          ]
+  "type": "Microsoft.Compute/virtualMachines",
+  "apiVersion": "2022-11-01",
+  "name": "[parameters('vmName')]",
+  "location": "[parameters('location')]",
+  "dependsOn": [
+    "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
+  ],
+  "properties": {
+    "hardwareProfile": {
+      "vmSize": "[parameters('vmSize')]"
+    },
+    "osProfile": {
+      "computerName": "[parameters('vmName')]",
+      "adminUsername": "[parameters('adminUsername')]",
+      "adminPassword": "[parameters('adminPassword')]"
+    },
+    "storageProfile": {
+      "imageReference": {
+        "publisher": "MicrosoftWindowsServer",
+        "offer": "WindowsServer",
+        "sku": "2022-datacenter-g2",
+        "version": "latest"
+      },
+      "osDisk": {
+        "name": "[concat(parameters('vmName'), '-osdisk')]",
+        "caching": "ReadWrite",
+        "createOption": "FromImage",
+        "managedDisk": {
+          "storageAccountType": "Premium_LRS"
         }
       }
     },
+    "networkProfile": {
+      "networkInterfaces": [
+        {
+          "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
+        }
+      ]
+    },
+    "securityProfile": {
+      "securityType": "TrustedLaunch",
+      "uefiSettings": {
+        "secureBootEnabled": true,
+        "vTpmEnabled": true
+      }
+    }
+  }
+},
     {
       "type": "Microsoft.Storage/storageAccounts",
       "apiVersion": "2021-09-01",
@@ -438,47 +448,54 @@
       }
     },
     {
-      "type": "Microsoft.Compute/virtualMachines",
-      "apiVersion": "2022-11-01",
-      "name": "[parameters('clientVmName')]",
-      "location": "[parameters('location')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/networkInterfaces', variables('clientNetworkInterfaceName'))]"
-      ],
-      "properties": {
-        "hardwareProfile": {
-          "vmSize": "[parameters('clientVmSize')]"
-        },
-        "osProfile": {
-          "computerName": "[parameters('clientVmName')]",
-          "adminUsername": "[parameters('adminUsername')]",
-          "adminPassword": "[parameters('adminPassword')]"
-        },
-        "storageProfile": {
-          "imageReference": {
-            "publisher": "MicrosoftWindowsDesktop",
-            "offer": "windows-11",
-            "sku": "win11-24h2-pro",
-            "version": "latest"
-          },
-          "osDisk": {
-            "name": "[concat(parameters('clientVmName'), '-osdisk')]",
-            "caching": "ReadWrite",
-            "createOption": "FromImage",
-            "managedDisk": {
-              "storageAccountType": "Premium_LRS"
-            }
-          }
-        },
-        "networkProfile": {
-          "networkInterfaces": [
-            {
-              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('clientNetworkInterfaceName'))]"
-            }
-          ]
+  "type": "Microsoft.Compute/virtualMachines",
+  "apiVersion": "2022-11-01",
+  "name": "[parameters('clientVmName')]",
+  "location": "[parameters('location')]",
+  "dependsOn": [
+    "[resourceId('Microsoft.Network/networkInterfaces', variables('clientNetworkInterfaceName'))]"
+  ],
+  "properties": {
+    "hardwareProfile": {
+      "vmSize": "[parameters('clientVmSize')]"
+    },
+    "osProfile": {
+      "computerName": "[parameters('clientVmName')]",
+      "adminUsername": "[parameters('adminUsername')]",
+      "adminPassword": "[parameters('adminPassword')]"
+    },
+    "storageProfile": {
+      "imageReference": {
+        "publisher": "MicrosoftWindowsDesktop",
+        "offer": "windows-11",
+        "sku": "win11-24h2-pro-g2",
+        "version": "latest"
+      },
+      "osDisk": {
+        "name": "[concat(parameters('clientVmName'), '-osdisk')]",
+        "caching": "ReadWrite",
+        "createOption": "FromImage",
+        "managedDisk": {
+          "storageAccountType": "Premium_LRS"
         }
       }
+    },
+    "networkProfile": {
+      "networkInterfaces": [
+        {
+          "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('clientNetworkInterfaceName'))]"
+        }
+      ]
+    },
+    "securityProfile": {
+      "securityType": "TrustedLaunch",
+      "uefiSettings": {
+        "secureBootEnabled": true,
+        "vTpmEnabled": true
+      }
     }
+  }
+}
   ],
   "outputs": {
     "vmFqdn": {
