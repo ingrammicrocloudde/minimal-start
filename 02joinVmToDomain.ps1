@@ -43,22 +43,27 @@ try {
     $SecurePassword = ConvertTo-SecureString $DomainAdminPassword -AsPlainText -Force
     $Credential = New-Object System.Management.Automation.PSCredential ("$DomainName\$DomainAdminUsername", $SecurePassword)
 
-    # Prepare domain join parameters
-    $joinParams = @{
-        DomainName = $DomainName
-        Credential = $Credential
-        Force = $true
-        Restart = $true
-    }
+    ## Prepare domain join parameters
+    #$joinParams = @{
+    #    DomainName = $DomainName
+    #    Credential = $Credential
+    #    Force = $true
+    #    Restart = $true
+    #}
 
-    # Add OU path if specified
-    if ($OUPath) {
-        $joinParams.OUPath = $OUPath
-    }
+    ## Add OU path if specified
+    #if ($OUPath) {
+    #    $joinParams.OUPath = $OUPath
+    #}
 
     # Join domain
     Write-Host "Joining domain $DomainName..."
-    Add-Computer @joinParams
+    if ($OUPath) {
+        Add-Computer -DomainName $DomainName -Credential $Credential -OUPath $OUPath -Force -Restart -Verbose
+    }
+else {
+        Add-Computer -DomainName $DomainName -Credential $Credential -Force -Restart -Verbose
+    }
 
     Write-Host "Domain join initiated successfully. Computer will restart to complete the process."
 
