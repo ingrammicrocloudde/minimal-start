@@ -1,10 +1,8 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory=$true)]
     [string]$DomainName = "example.com",
     
-    [Parameter(Mandatory=$true)]
-    [string]$SafeModeAdministratorPassword,
+    [string]$SafeModeAdministratorPassword = "YourSecurePassword123!",
 
     [Parameter(Mandatory=$false)]
     [string]$NetBiosName = ($DomainName -split '\.')[0].ToUpper()
@@ -29,9 +27,8 @@ try {
  # Set DNS configuration appropriate for Azure VM
     $adapter = Get-NetAdapter | Where-Object {$_.Status -eq "Up"}
     # Set primary DNS to loopback and secondary to Azure DNS
-    Set-DnsClientServerAddress -InterfaceIndex $adapter.ifIndex -ServerAddresses ("127.0.0.1", "168.63.129.16")
-
-    # Install required Windows Features
+    Set-DnsClientServerAddress -InterfaceIndex $adapter.ifIndex -ServerAddresses ("127.0.0.1")
+        # Install required Windows Features
     Write-Host "Installing AD Domain Services and management tools..."
     $feature = Install-WindowsFeature -Name AD-Domain-Services, DNS -IncludeManagementTools
     if (-not $feature.Success) {
