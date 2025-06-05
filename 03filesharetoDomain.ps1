@@ -9,17 +9,18 @@ param(
 [string]$ResourceGroupName = "YourResourceGroup",                 # Resource group containing the storage account
 [string]$StorageAccountName = "yourstorageaccount",               # Azure storage account name
 [string]$FileShareName = "premiumshare",                          # Name of the Azure file share
-[string]$DriveLetter = "Z",
-[string]$Username = "aktapaz",                                    # Drive letter to map the share to (optional)
-# Domain Variables
+[string]$DriveLetter = "Z",                                       # Drive letter to map the share to (optional)
+[string]$Username = "aktapaz",                                   # Username for the storage account (usually "Azure\<StorageAccountName>")
 [string]$DomainName = "corp.example.com"                          # Your domain FQDN
 )
 
 
 # Login to Azure
 Write-Host "Connecting to Azure..." -ForegroundColor Cyan
-Connect-AzAccount
+Connect-AzAccount -UseDeviceAuthentication 
 Set-AzContext -Subscription $SubscriptionId
+
+Get-AzContext.Subscription.Id 
 
 # Get the storage account and create a context
 Write-Host "Getting storage account context..." -ForegroundColor Cyan
