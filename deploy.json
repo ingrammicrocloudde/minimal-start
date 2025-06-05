@@ -91,6 +91,13 @@
         "description": "Size of the Windows 11 client VM"
       }
     },
+    "timeZone": {
+      "type": "string",
+      "defaultValue": "Central European Standard Time",
+      "metadata": {
+        "description": "Time zone for the Windows 11 client VM"
+      }
+    },
     "fileShareName": {
       "type": "string",
       "defaultValue": "premiumfileshare",
@@ -243,6 +250,19 @@
               "destinationAddressPrefix": "*",
               "destinationPortRange": "3389"
             }
+          },
+          {
+            "name": "WinRM-HTTPS",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "5986",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 1001,
+              "direction": "Inbound"
+            }
           }
         ]
       }
@@ -292,7 +312,17 @@
         "osProfile": {
           "computerName": "[parameters('vmName')]",
           "adminUsername": "[parameters('adminUsername')]",
-          "adminPassword": "[parameters('adminPassword')]"
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "provisionVMAgent": true,
+            "enableAutomaticUpdates": true,
+            "timeZone": "[parameters('timeZone')]",
+            "patchSettings": {
+              "patchMode": "AutomaticByOS",
+              "assessmentMode": "ImageDefault",
+              "enableHotpatching": false
+            }
+          }
         },
         "storageProfile": {
           "imageReference": {
@@ -455,13 +485,23 @@
         "osProfile": {
           "computerName": "[parameters('clientVmName')]",
           "adminUsername": "[parameters('adminUsername')]",
-          "adminPassword": "[parameters('adminPassword')]"
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "provisionVMAgent": true,
+            "enableAutomaticUpdates": true,
+            "timeZone": "[parameters('timeZone')]",
+            "patchSettings": {
+              "patchMode": "AutomaticByOS",
+              "assessmentMode": "ImageDefault",
+              "enableHotpatching": false
+            }
+          }
         },
         "storageProfile": {
           "imageReference": {
             "publisher": "MicrosoftWindowsDesktop",
             "offer": "windows-11",
-            "sku": "win11-24h2-pro",
+            "sku": "win11-24h2-avd",
             "version": "latest"
           },
           "osDisk": {
