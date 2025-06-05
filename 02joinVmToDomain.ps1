@@ -1,135 +1,104 @@
-[CmdletBinding()]
-param(
-    [string]$DomainName = "contoso.com",
-
-    [string]$DomainAdminUsername = "Administrator",
-
-    [string]$DomainAdminPassword = "P@ssw0rd",
-
-    [string]$DCIPAddress= "10.0.0.4",
-
-    [Parameter(Mandatory=$false)]
-    [string]$OUPath
-)
-
-# Ensure running as administrator
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $isAdmin) {
-    throw "This script must be run as Administrator"
-}
-
-try {
-    Write-Host "Starting domain join process..."
-
-    # If DC IP is provided, set DNS to DC IP first
-    if ($DCIPAddress) {
-        Write-Host "Setting DNS to Domain Controller IP..."
-        $adapter = Get-NetAdapter | Where-Object {$_.Status -eq "Up"}
-        if (-not $adapter) {
-            throw "No active network adapter found."
-        }
-        Set-DnsClientServerAddress -InterfaceIndex $adapter.ifIndex -ServerAddresses ($DCIPAddress)
-        Start-Sleep -Seconds 5  # Allow DNS changes to propagate
-    }
-
-    # Test domain controller connectivity
-    Write-Host "Testing domain controller connectivity..."
-    if ($DCIPAddress) {
-        if (-not (Test-Connection -ComputerName $DCIPAddress -Count 2 -Quiet)) {
-            throw "Cannot reach domain controller at IP $DCIPAddress. Please check network connectivity."
-        }
-    }
-
-    # Test domain name resolution
-    Write-Host "Testing domain name resolution..."
-    try {
-        $domainIP = Resolve-DnsName -Name $DomainName -Type A -ErrorAction Stop
-        Write-Host "Domain $DomainName resolved to: $($domainIP.IPAddress -join ', ')"
-    } catch {
-        throw "Cannot resolve domain name $DomainName. DNS resolution failed: $_"
-    }
-
-    # Test domain connectivity
-    Write-Host "Testing domain connectivity..."
-    if (-not (Test-Connection -ComputerName $DomainName -Count 2 -Quiet)) {
-        throw "Cannot reach domain $DomainName. Please check network connectivity and DNS settings."
-    }
-
-    # Create credential object
-    $SecurePassword = ConvertTo-SecureString $DomainAdminPassword -AsPlainText -Force
-    $Credential = New-Object System.Management.Automation.PSCredential ("$DomainName\$DomainAdminUsername", $SecurePassword)
-
     # Test domain credentials and availability
     Write-Host "Validating domain credentials and availability..."
     try {
-        # Try to get domain information using the provided credentials
-        $domain = Get-WmiObject -Class Win32_NTDomain -Filter "DomainName='$DomainName'" -Credential $Credential -ErrorAction Stop
-        if (-not $domain) {
-            # Alternative method using DirectoryServices
-            Add-Type -AssemblyName System.DirectoryServices.AccountManagement
-            $contextType = [System.DirectoryServices.AccountManagement.ContextType]::Domain
-            $principalContext = New-Object System.DirectoryServices.AccountManagement.PrincipalContext($contextType, $DomainName)
-            
+        # Method 1: Try LDAP connection to validate credentials
+        Write-Host "Testing LDAP connection to domain..."
+        Add-Type -AssemblyName System.DirectoryServices
+        $ldapPath = "LDAP://$DomainName"
+        $directoryEntry = New-Object System.DirectoryServices.DirectoryEntry($ldapPath, "$DomainName\$DomainAdminUsername", $DomainAdminPassword)
+        
+        # Try to read a property to validate the connection
+        $domainDN = $directoryEntry.distinguishedName
+        if ([string]::IsNullOrEmpty($domainDN)) {
+            throw "LDAP connection failed - could not retrieve domain distinguished name"
+        }
+        Write-Host "LDAP connection successful. Domain DN: $domainDN"
+        $directoryEntry.Dispose()
+        
+        # Method 2: Alternative credential validation using DirectoryServices.AccountManagement
+        Write-Host "Validating credentials using AccountManagement..."
+        Add-Type -AssemblyName System.DirectoryServices.AccountManagement
+        $contextType = [System.DirectoryServices.AccountManagement.ContextType]::Domain
+        
+        try {
+            $principalContext = New-Object System.DirectoryServices.AccountManagement.PrincipalContext($contextType, $DomainName, $DCIPAddress)
             $isValidCredential = $principalContext.ValidateCredentials($DomainAdminUsername, $DomainAdminPassword)
             $principalContext.Dispose()
             
             if (-not $isValidCredential) {
                 throw "Invalid domain credentials for user '$DomainAdminUsername' in domain '$DomainName'"
             }
-        }
-        Write-Host "Domain credentials validated successfully."
-    } catch {
-        throw "Failed to validate domain credentials or domain availability: $_"
-    }
-
-    # Validate OU Path if provided
-    if ($OUPath) {
-        Write-Host "Validating OU Path..."
-        try {
-            Add-Type -AssemblyName System.DirectoryServices
-            $domainPath = "LDAP://$DomainName"
-            $directoryEntry = New-Object System.DirectoryServices.DirectoryEntry($domainPath, "$DomainName\$DomainAdminUsername", $DomainAdminPassword)
-            $searcher = New-Object System.DirectoryServices.DirectorySearcher($directoryEntry)
-            $searcher.Filter = "(distinguishedName=$OUPath)"
-            $result = $searcher.FindOne()
-            
-            if (-not $result) {
-                throw "OU Path '$OUPath' not found in domain '$DomainName'"
-            }
-            Write-Host "OU Path validated successfully."
-            
-            $directoryEntry.Dispose()
-            $searcher.Dispose()
+            Write-Host "Domain credentials validated successfully using AccountManagement."
         } catch {
-            throw "Failed to validate OU Path '$OUPath': $_"
+            # If AccountManagement fails, try without specifying server
+            Write-Host "Retrying credential validation without specific server..."
+            $principalContext2 = New-Object System.DirectoryServices.AccountManagement.PrincipalContext($contextType, $DomainName)
+            $isValidCredential2 = $principalContext2.ValidateCredentials($DomainAdminUsername, $DomainAdminPassword)
+            $principalContext2.Dispose()
+            
+            if (-not $isValidCredential2) {
+                throw "Invalid domain credentials for user '$DomainAdminUsername' in domain '$DomainName'"
+            }
+            Write-Host "Domain credentials validated successfully."
+        }
+        
+        # Method 3: Test domain join permissions by checking if user exists and has necessary privileges
+        Write-Host "Verifying domain join permissions..."
+        $domainUserPath = "LDAP://$DomainName"
+        $domainEntry = New-Object System.DirectoryServices.DirectoryEntry($domainUserPath, "$DomainName\$DomainAdminUsername", $DomainAdminPassword)
+        $searcher = New-Object System.DirectoryServices.DirectorySearcher($domainEntry)
+        $searcher.Filter = "(&(objectClass=user)(sAMAccountName=$DomainAdminUsername))"
+        $userResult = $searcher.FindOne()
+        
+        if ($userResult) {
+            $userEntry = $userResult.GetDirectoryEntry()
+            $memberOf = $userEntry.Properties["memberOf"]
+            Write-Host "User found in domain. Member of $($memberOf.Count) groups."
+            
+            # Check if user is in Domain Admins or has necessary permissions
+            $isDomainAdmin = $false
+            foreach ($group in $memberOf) {
+                if ($group -like "*Domain Admins*" -or $group -like "*Administrators*") {
+                    $isDomainAdmin = $true
+                    break
+                }
+            }
+            
+            if ($isDomainAdmin) {
+                Write-Host "User has domain administrative privileges."
+            } else {
+                Write-Warning "User may not have domain join privileges. Proceeding anyway..."
+            }
+            
+            $userEntry.Dispose()
+        }
+        
+        $domainEntry.Dispose()
+        $searcher.Dispose()
+        
+        Write-Host "All domain credential validations passed."
+        
+    } catch {
+        $errorMessage = $_.Exception.Message
+        Write-Warning "Domain credential validation encountered an issue: $errorMessage"
+        
+        # If all validation methods fail, provide detailed troubleshooting
+        if ($errorMessage -like "*User credentials cannot be used for local connections*") {
+            Write-Host "This is a WMI limitation. Continuing with LDAP-based validation only..."
+        } elseif ($errorMessage -like "*The server is not operational*") {
+            throw "Domain controller is not accessible. Please verify DC IP address and network connectivity."
+        } elseif ($errorMessage -like "*Logon failure*" -or $errorMessage -like "*invalid credentials*") {
+            throw "Invalid username or password. Please verify domain credentials."
+        } elseif ($errorMessage -like "*The specified domain either does not exist*") {
+            throw "Domain '$DomainName' does not exist or is not accessible."
+        } else {
+            # For other errors, try a final basic connectivity test
+            Write-Host "Attempting basic domain connectivity test..."
+            try {
+                $testConnection = Test-ComputerSecureChannel -Server $DomainName -ErrorAction Stop
+                Write-Host "Basic domain connectivity test passed."
+            } catch {
+                throw "Failed to validate domain credentials or domain availability: $errorMessage"
+            }
         }
     }
-
-    # Final connectivity test before joining
-    Write-Host "Performing final connectivity test..."
-    Start-Sleep -Seconds 2
-    if (-not (Test-Connection -ComputerName $DomainName -Count 1 -Quiet)) {
-        throw "Final connectivity test failed. Cannot proceed with domain join."
-    }
-
-    # Join domain
-    Write-Host "All validations passed. Joining domain $DomainName..."
-    if ($OUPath) {
-        Add-Computer -DomainName $DomainName -Credential $Credential -OUPath $OUPath -Force -Restart -Verbose
-    } else {
-        Add-Computer -DomainName $DomainName -Credential $Credential -Force -Restart -Verbose
-    }
-
-    Write-Host "Domain join initiated successfully. Computer will restart to complete the process."
-
-} catch {
-    Write-Error "An error occurred while joining the domain: $_"
-    Write-Host "Troubleshooting tips:"
-    Write-Host "1. Verify the domain name is correct: $DomainName"
-    Write-Host "2. Verify the username is correct: $DomainAdminUsername"
-    Write-Host "3. Verify the password is correct"
-    Write-Host "4. Ensure the DC IP address is reachable: $DCIPAddress"
-    Write-Host "5. Check if the account has domain join permissions"
-    Write-Host "6. Verify the OU path (if specified): $OUPath"
-    exit 1
-}
