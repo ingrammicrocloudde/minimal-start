@@ -91,6 +91,14 @@
         "description": "Size of the Windows 11 client VM"
       }
     },
+        "timeZone": {
+      "type": "string",
+      "defaultValue": "W. Europe Standard Time",
+      "metadata": {
+        "description": "Time zone for the VM"
+      }
+    }
+  },
     "fileShareName": {
       "type": "string",
       "defaultValue": "premiumfileshare",
