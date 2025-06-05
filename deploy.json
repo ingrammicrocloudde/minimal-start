@@ -214,8 +214,11 @@
       "apiVersion": "2022-07-01",
       "name": "[variables('publicIPAddressName')]",
       "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard"
+      },
       "properties": {
-        "publicIPAllocationMethod": "Dynamic",
+        "publicIPAllocationMethod": "static",
         "dnsSettings": {
           "domainNameLabel": "[toLower(concat(parameters('vmName'), uniqueString(resourceGroup().id)))]"
         }
