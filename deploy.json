@@ -91,14 +91,13 @@
         "description": "Size of the Windows 11 client VM"
       }
     },
-        "timeZone": {
+    "timeZone": {
       "type": "string",
-      "defaultValue": "W. Europe Standard Time",
+      "defaultValue": "Central European Standard Time",
       "metadata": {
-        "description": "Time zone for the VM"
+        "description": "Time zone for the Windows 11 client VM"
       }
-    }
-  },
+    },
     "fileShareName": {
       "type": "string",
       "defaultValue": "premiumfileshare",
@@ -251,6 +250,19 @@
               "destinationAddressPrefix": "*",
               "destinationPortRange": "3389"
             }
+          },
+          {
+            "name": "WinRM-HTTPS",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "5986",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 1001,
+              "direction": "Inbound"
+            }
           }
         ]
       }
@@ -286,54 +298,57 @@
       }
     },
     {
-  "type": "Microsoft.Compute/virtualMachines",
-  "apiVersion": "2022-11-01",
-  "name": "[parameters('vmName')]",
-  "location": "[parameters('location')]",
-  "dependsOn": [
-    "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
-  ],
-  "properties": {
-    "hardwareProfile": {
-      "vmSize": "[parameters('vmSize')]"
-    },
-    "osProfile": {
-      "computerName": "[parameters('vmName')]",
-      "adminUsername": "[parameters('adminUsername')]",
-      "adminPassword": "[parameters('adminPassword')]"
-    },
-    "storageProfile": {
-      "imageReference": {
-        "publisher": "MicrosoftWindowsServer",
-        "offer": "WindowsServer",
-        "sku": "2022-datacenter-g2",
-        "version": "latest"
-      },
-      "osDisk": {
-        "name": "[concat(parameters('vmName'), '-osdisk')]",
-        "caching": "ReadWrite",
-        "createOption": "FromImage",
-        "managedDisk": {
-          "storageAccountType": "Premium_LRS"
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2022-11-01",
+      "name": "[parameters('vmName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('vmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "provisionVMAgent": true,
+            "enableAutomaticUpdates": true,
+            "timeZone": "[parameters('timeZone')]",
+            "patchSettings": {
+              "patchMode": "AutomaticByOS",
+              "assessmentMode": "ImageDefault",
+              "enableHotpatching": false
+            }
+          }
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "MicrosoftWindowsServer",
+            "offer": "WindowsServer",
+            "sku": "2022-Datacenter",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "[concat(parameters('vmName'), '-osdisk')]",
+            "caching": "ReadWrite",
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            }
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
+            }
+          ]
         }
       }
     },
-    "networkProfile": {
-      "networkInterfaces": [
-        {
-          "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
-        }
-      ]
-    },
-    "securityProfile": {
-      "securityType": "TrustedLaunch",
-      "uefiSettings": {
-        "secureBootEnabled": true,
-        "vTpmEnabled": true
-      }
-    }
-  }
-},
     {
       "type": "Microsoft.Storage/storageAccounts",
       "apiVersion": "2021-09-01",
@@ -421,19 +436,6 @@
               "destinationAddressPrefix": "*",
               "destinationPortRange": "3389"
             }
-          },
-          {
-            "name": "WinRM-HTTPS",
-            "properties": {
-              "protocol": "Tcp",
-              "sourcePortRange": "*",
-              "destinationPortRange": "5986",
-              "sourceAddressPrefix": "*",
-              "destinationAddressPrefix": "*",
-              "access": "Allow",
-              "priority": 1001,
-              "direction": "Inbound"
-            }
           }
         ]
       }
@@ -469,18 +471,19 @@
       }
     },
     {
-  "type": "Microsoft.Compute/virtualMachines",
-  "apiVersion": "2022-11-01",
-  "name": "[parameters('clientVmName')]",
-  "location": "[parameters('location')]",
-  "dependsOn": [
-    "[resourceId('Microsoft.Network/networkInterfaces', variables('clientNetworkInterfaceName'))]"
-  ],
-  "properties": {
-    "hardwareProfile": {
-      "vmSize": "[parameters('clientVmSize')]"
-    "osProfile": {
-          "computerName": "[parameters('ClientvmName')]",
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2022-11-01",
+      "name": "[parameters('clientVmName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('clientNetworkInterfaceName'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('clientVmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('clientVmName')]",
           "adminUsername": "[parameters('adminUsername')]",
           "adminPassword": "[parameters('adminPassword')]",
           "windowsConfiguration": {
@@ -494,39 +497,31 @@
             }
           }
         },
-    "storageProfile": {
+        "storageProfile": {
           "imageReference": {
             "publisher": "MicrosoftWindowsDesktop",
-            "offer": "Windows-11",
-            "sku": "win11-22h2-avd",
+            "offer": "windows-11",
+            "sku": "win11-24h2-avd",
             "version": "latest"
           },
           "osDisk": {
-            "name": "[variables('osDiskName')]",
+            "name": "[concat(parameters('clientVmName'), '-osdisk')]",
             "caching": "ReadWrite",
             "createOption": "FromImage",
             "managedDisk": {
-              "storageAccountType": "[parameters('diskType')]"
-            },
-            "diskSizeGB": 128
+              "storageAccountType": "Premium_LRS"
+            }
           }
         },
-    "networkProfile": {
-      "networkInterfaces": [
-        {
-          "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('clientNetworkInterfaceName'))]"
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('clientNetworkInterfaceName'))]"
+            }
+          ]
         }
-      ]
-    },
-    "securityProfile": {
-      "securityType": "TrustedLaunch",
-      "uefiSettings": {
-        "secureBootEnabled": true,
-        "vTpmEnabled": true
       }
     }
-  }
-}
   ],
   "outputs": {
     "vmFqdn": {
