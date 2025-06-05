@@ -51,7 +51,7 @@ try {
         DatabasePath = "C:\Windows\NTDS"
         LogPath = "C:\Windows\NTDS"
         SysvolPath = "C:\Windows\SYSVOL"
-        ForceReboot = $true
+        #ForceReboot = $true
         NoRebootOnCompletion = $false
         Force = $true
     }
