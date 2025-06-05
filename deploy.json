@@ -413,6 +413,19 @@
               "destinationAddressPrefix": "*",
               "destinationPortRange": "3389"
             }
+          },
+          {
+            "name": "WinRM-HTTPS",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "5986",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 1001,
+              "direction": "Inbound"
+            }
           }
         ]
       }
@@ -458,28 +471,38 @@
   "properties": {
     "hardwareProfile": {
       "vmSize": "[parameters('clientVmSize')]"
-    },
     "osProfile": {
-      "computerName": "[parameters('clientVmName')]",
-      "adminUsername": "[parameters('adminUsername')]",
-      "adminPassword": "[parameters('adminPassword')]"
-    },
+          "computerName": "[parameters('ClientvmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "provisionVMAgent": true,
+            "enableAutomaticUpdates": true,
+            "timeZone": "[parameters('timeZone')]",
+            "patchSettings": {
+              "patchMode": "AutomaticByOS",
+              "assessmentMode": "ImageDefault",
+              "enableHotpatching": false
+            }
+          }
+        },
     "storageProfile": {
-      "imageReference": {
-        "publisher": "MicrosoftWindowsDesktop",
-        "offer": "windows-11",
-        "sku": "win11-24h2-pro-g2",
-        "version": "latest"
-      },
-      "osDisk": {
-        "name": "[concat(parameters('clientVmName'), '-osdisk')]",
-        "caching": "ReadWrite",
-        "createOption": "FromImage",
-        "managedDisk": {
-          "storageAccountType": "Premium_LRS"
-        }
-      }
-    },
+          "imageReference": {
+            "publisher": "MicrosoftWindowsDesktop",
+            "offer": "Windows-11",
+            "sku": "win11-22h2-avd",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "[variables('osDiskName')]",
+            "caching": "ReadWrite",
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "[parameters('diskType')]"
+            },
+            "diskSizeGB": 128
+          }
+        },
     "networkProfile": {
       "networkInterfaces": [
         {
