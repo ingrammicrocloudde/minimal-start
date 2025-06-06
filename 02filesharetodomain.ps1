@@ -214,7 +214,7 @@ if ( -not $StorageAccount ) {
                                 -ResourceGroupName $ResourceGroupName `
                                 -Name $StorageAccountName `
                                 -Location $Location `
-                                -SkuName Standard_LRS `
+                                -SkuName Premium_LRS `
                                 -Kind StorageV2 `
                                 -MinimumTlsVersion TLS1_2 `
                                 -EnableHierarchicalNamespace $false
