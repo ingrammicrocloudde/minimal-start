@@ -118,7 +118,7 @@ if ( -not $InstMod ) {
 Write-Output "Install AzFilesHybrid module..."
     try {
         # URL der ZIP-Datei for AzFilesHybrid
-        $zipUrl = "https://github.com/Azure-Samples/azure-files-samples/releases/download/latest/AzFilesHybrid.zip"   #"https://github.com/Azure-Samples/azure-files-samples/releases/download/v0.3.2/AzFilesHybrid.zip"
+        $zipUrl = "https://github.com/Azure-Samples/azure-files-samples/releases/download/v0.3.2/AzFilesHybrid.zip"
 
         # TemporÃ¤res Verzeichnis erstellen
         $tempDir = [System.IO.Path]::GetTempPath()
