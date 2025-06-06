@@ -50,9 +50,9 @@
 #>
 
 param(
-    [Parameter(Mandatory=$true)][string]$ResourceGroupName, #= "RR-OCC-02-Peering",
-    [Parameter(Mandatory=$true)][string]$StorageAccountName, #= "sa29012025n002",
-    [Parameter(Mandatory=$true)][string]$ShareName, #= "share",
+    [string]$ResourceGroupName = "dark-n-stormy-rg",
+    [string]$StorageAccountName = "sa29012025n002",
+    [string]$ShareName = "share",
     [string]$OuDistinguishedName, # = "OU=Computers,OU=OU1,OU=RootOU,DC=truekillrob,DC=com",
     [ValidateSet("None","StorageFileDataSmbShareContributor","StorageFileDataSmbShareReader","StorageFileDataSmbShareElevatedContributor")] # Set the default permission of your choice
     [string]$defaultPermission = "StorageFileDataSmbShareContributor",    
