@@ -97,35 +97,8 @@
       "metadata": {
         "description": "Time zone for the Windows 11 client VM"
       }
-    },
-    "fileShareName": {
-      "type": "string",
-      "defaultValue": "premiumfileshare",
-      "metadata": {
-        "description": "Name of the premium file share"
-      }
-    },
-    "storageAccountName": {
-      "type": "string",
-      "defaultValue": "[concat('ps', uniqueString(resourceGroup().id))]",
-      "metadata": {
-        "description": "Storage account name for premium file storage"
-      }
-    },
-    "storageAccountSku": {
-      "type": "string",
-      "defaultValue": "Premium_LRS",
-      "metadata": {
-        "description": "Storage account SKU (Premium_LRS for premium file storage)"
-      }
-    },
-    "fileShareQuota": {
-      "type": "int",
-      "defaultValue": 100,
-      "metadata": {
-        "description": "Size of the file share in GB"
-      }
     }
+    
   },
   "variables": {
     "hubSubnetName": "default",
@@ -349,59 +322,6 @@
         }
       }
     },
-    {
-      "type": "Microsoft.Storage/storageAccounts",
-      "apiVersion": "2021-09-01",
-      "name": "[parameters('storageAccountName')]",
-      "location": "[parameters('location')]",
-      "sku": {
-        "name": "[parameters('storageAccountSku')]"
-      },
-      "kind": "FileStorage",
-      "properties": {
-        "minimumTlsVersion": "TLS1_2",
-        "allowBlobPublicAccess": false,
-        "allowSharedKeyAccess": true,
-        "networkAcls": {
-          "bypass": "AzureServices",
-          "virtualNetworkRules": [],
-          "ipRules": [],
-          "defaultAction": "Allow"
-        },
-        "supportsHttpsTrafficOnly": true,
-        "encryption": {
-          "services": {
-            "file": {
-              "keyType": "Account",
-              "enabled": true
-            }
-          },
-          "keySource": "Microsoft.Storage"
-        }
-      }
-    },
-    {
-      "type": "Microsoft.Storage/storageAccounts/fileServices",
-      "apiVersion": "2021-09-01",
-      "name": "[concat(parameters('storageAccountName'), '/default')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-      ],
-      "properties": {}
-    },
-    {
-      "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
-      "apiVersion": "2021-09-01",
-      "name": "[concat(parameters('storageAccountName'), '/default/', parameters('fileShareName'))]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Storage/storageAccounts/fileServices', parameters('storageAccountName'), 'default')]"
-      ],
-      "properties": {
-        "accessTier": "Premium",
-        "shareQuota": "[parameters('fileShareQuota')]",
-        "enabledProtocols": "SMB"
-      }
-    },
       {
       "type": "Microsoft.Network/publicIPAddresses",
       "apiVersion": "2022-07-01",
@@ -528,14 +448,7 @@
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))).dnsSettings.fqdn]"
     },
-    "storageAccountKey": {
-      "type": "string",
-      "value": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2021-09-01').keys[0].value]"
-    },
-    "fileShareEndpoint": {
-      "type": "string",
-      "value": "[concat('\\\\', reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))).primaryEndpoints.file, parameters('fileShareName'))]"
-    },
+    
      "clientVmFqdn": {
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('clientPublicIPAddressName'))).dnsSettings.fqdn]"
