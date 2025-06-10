@@ -1,5 +1,5 @@
 param(
-    [string]$ResourceGroupName = "dark-n-stormy-rg",
+    [string]$ResourceGroupName = "new-week-rg",
     [string]$StorageAccountName = "sa29012025n002",
     [string]$ShareName = "share",
     [string]$OuDistinguishedName, # = "OU=Computers,OU=OU1,OU=RootOU,DC=truekillrob,DC=com",
@@ -23,7 +23,7 @@ if (-not $IsAdmin) {
 
 try {
 # Change the execution policy to bypass for importing AzFilesHybrid.psm1 module
-    Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+    Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
     Set-PSRepository -Name "PSGallery" -InstallationPolicy:Trusted
     
     # Install PowerShellGet if needed without restart warnings
@@ -173,7 +173,7 @@ if ( -not $StorageAccount ) {
                                 -Name $StorageAccountName `
                                 -Location $Location `
                                 -SkuName Premium_LRS `
-                                -Kind StorageV2 `
+                                -Kind FileStorage `
                                 -MinimumTlsVersion TLS1_2 `
                                 -EnableHierarchicalNamespace $false
 
@@ -277,11 +277,11 @@ Join-AzStorageAccount `
 $account = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -AccountName $StorageAccountName -DefaultSharePermission $defaultPermission
 #$account.AzureFilesIdentityBasedAuth
 
-# Create the file share
+# Create the premium file share
 $SAKey = (Get-AzStorageAccountKey -ResourceGroupName $ResourceGroupName -AccountName $StorageAccountName)[0].Value
 $SAContext = New-AzStorageContext -StorageAccountName $StorageAccountName -StorageAccountKey $SAKey
-$fileShare = New-AzStorageShare -Context $SAContext -Name $ShareName
-Write-Output "File share '$ShareName' created successfully."
+$fileShare = New-AzStorageShare -Context $SAContext -Name $ShareName -QuotaGiB 100
+Write-Output "Premium file share '$ShareName' created successfully with 100 GiB quota."
 
 $Uri = "\\" + $account.PrimaryEndpoints.File.Split('/')[2] + "\" + $fileShare.Name
 
