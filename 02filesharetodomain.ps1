@@ -1,58 +1,7 @@
-<#
-.SYNOPSIS
-    This script configures an Azure Storage Account and integrates it with Active Directory.
-
-.DESCRIPTION
-    The script performs the following tasks:
-    - Checks if the script is running with administrative privileges.
-    - Installs required PowerShell modules if they are not already installed.
-    - Configures the Azure Storage Account.
-    - Integrates the Storage Account with Active Directory.
-    - Sets default permissions for the Storage Account.
-    - Optionally configures a private DNS zone.
-
-.PARAMETER ResourceGroupName
-    The name of the resource group where the storage account is located. This parameter is mandatory.
-
-.PARAMETER StorageAccountName
-    The name of the storage account to be configured. This parameter is mandatory.
-
-.PARAMETER ShareName
-    The name of the file share to be created in the storage account. This parameter is mandatory.
-
-.PARAMETER OuDistinguishedName
-    The distinguished name of the organizational unit (OU) in Active Directory where the storage account will be integrated.
-
-.PARAMETER defaultPermission
-    The default permission to be set for the storage account. Valid values are:
-    - None
-    - StorageFileDataSmbShareContributor
-    - StorageFileDataSmbShareReader
-    - StorageFileDataSmbShareElevatedContributor
-    Default value is "StorageFileDataSmbShareContributor".
-
-.PARAMETER privateDnsZoneName
-    The name of the private DNS zone to be configured. Default value is "privatelink.file.core.windows.net".
-
-.PARAMETER ADDnsZone
-    A switch parameter to indicate if an AD DNS zone should be configured.
-
-.PARAMETER CheckConfiguration
-    A switch parameter to indicate if the script should check the existing configuration before making changes.
-
-.EXAMPLE
-    .\Add-StorageAccount2AD.ps1 -ResourceGroupName "MyResourceGroup" -StorageAccountName "mystorageaccount" -ShareName "myshare" -OuDistinguishedName "OU=Computers,OU=MyOU,DC=mydomain,DC=com"
-
-.NOTES
-    Version: 0.5.3
-    Author: Robert Rasp (robert.rasp@ingrammicro.com)
-    Date: 3.03.2025
-#>
-
 param(
-    [Parameter(Mandatory=$true)][string]$ResourceGroupName, #= "RR-OCC-02-Peering",
-    [Parameter(Mandatory=$true)][string]$StorageAccountName, #= "sa29012025n002",
-    [Parameter(Mandatory=$true)][string]$ShareName, #= "share",
+    [string]$ResourceGroupName = "new-week-rg",
+    [string]$StorageAccountName = "sa29012025n002",
+    [string]$ShareName = "share",
     [string]$OuDistinguishedName, # = "OU=Computers,OU=OU1,OU=RootOU,DC=truekillrob,DC=com",
     [ValidateSet("None","StorageFileDataSmbShareContributor","StorageFileDataSmbShareReader","StorageFileDataSmbShareElevatedContributor")] # Set the default permission of your choice
     [string]$defaultPermission = "StorageFileDataSmbShareContributor",    
@@ -73,9 +22,19 @@ if (-not $IsAdmin) {
 }
 
 try {
-# Change the execution policy to unblock importing AzFilesHybrid.psm1 module
-    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope:Process
+# Change the execution policy to bypass for importing AzFilesHybrid.psm1 module
+    Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
     Set-PSRepository -Name "PSGallery" -InstallationPolicy:Trusted
+    
+    # Install PowerShellGet if needed without restart warnings
+    $PowerShellGetModule = Get-Module PowerShellGet -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1
+    if (-not $PowerShellGetModule -or $PowerShellGetModule.Version -lt [Version]"2.2.5") {
+        Write-Output "Installing PowerShellGet module..."
+        Install-Module -Name PowerShellGet -MinimumVersion 2.2.5 -Force -AllowClobber -Scope CurrentUser -SkipPublisherCheck
+        Remove-Module PowerShellGet -Force -ErrorAction SilentlyContinue
+        Import-Module PowerShellGet -MinimumVersion 2.2.5 -Force
+    }
+    
     Write-Output "Check installed modules..."
     $Modules = @{
         "Az.Accounts" = "3.0.5"
@@ -84,7 +43,6 @@ try {
         "Az.Resources" = "7.5.0"
         "Az.PrivateDns" = "1.1.0"
     }
-
     foreach ( $M in $Modules.GetEnumerator()) {
         $InstMod = Get-Module $M.Key -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1
         if ( -not $InstMod -or $InstMod.Version -lt [Version]$M.Value ) {
@@ -120,7 +78,7 @@ Write-Output "Install AzFilesHybrid module..."
         # URL der ZIP-Datei for AzFilesHybrid
         $zipUrl = "https://github.com/Azure-Samples/azure-files-samples/releases/download/v0.3.2/AzFilesHybrid.zip"
 
-        # TemporÃ¤res Verzeichnis erstellen
+        # Temporaeres Verzeichnis erstellen
         $tempDir = [System.IO.Path]::GetTempPath()
         $zipFilePath = Join-Path -Path $tempDir -ChildPath "AzFilesHybrid.zip"
 
@@ -215,7 +173,7 @@ if ( -not $StorageAccount ) {
                                 -Name $StorageAccountName `
                                 -Location $Location `
                                 -SkuName Premium_LRS `
-                                -Kind StorageV2 `
+                                -Kind FileStorage `
                                 -MinimumTlsVersion TLS1_2 `
                                 -EnableHierarchicalNamespace $false
 
@@ -319,11 +277,11 @@ Join-AzStorageAccount `
 $account = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -AccountName $StorageAccountName -DefaultSharePermission $defaultPermission
 #$account.AzureFilesIdentityBasedAuth
 
-# Create the file share
+# Create the premium file share
 $SAKey = (Get-AzStorageAccountKey -ResourceGroupName $ResourceGroupName -AccountName $StorageAccountName)[0].Value
 $SAContext = New-AzStorageContext -StorageAccountName $StorageAccountName -StorageAccountKey $SAKey
-$fileShare = New-AzStorageShare -Context $SAContext -Name $ShareName
-Write-Output "File share '$ShareName' created successfully."
+$fileShare = New-AzStorageShare -Context $SAContext -Name $ShareName -QuotaGiB 100
+Write-Output "Premium file share '$ShareName' created successfully with 100 GiB quota."
 
 $Uri = "\\" + $account.PrimaryEndpoints.File.Split('/')[2] + "\" + $fileShare.Name
 
