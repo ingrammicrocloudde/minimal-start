@@ -1,0 +1,193 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    },
+    "hostPoolName": {
+      "type": "string",
+      "defaultValue": "avd-hostpool",
+      "metadata": {
+        "description": "Name of the AVD Host Pool"
+      }
+    },
+    "hostPoolFriendlyName": {
+      "type": "string",
+      "defaultValue": "AVD Host Pool",
+      "metadata": {
+        "description": "Host Pool friendly name"
+      }
+    },
+    "hostPoolDescription": {
+      "type": "string",
+      "defaultValue": "Azure Virtual Desktop Host Pool",
+      "metadata": {
+        "description": "Host Pool description"
+      }
+    },
+    "desktopAppGroupName": {
+      "type": "string",
+      "defaultValue": "avd-desktop-app-group",
+      "metadata": {
+        "description": "AVD desktop application group name"
+      }
+    },
+    "desktopAppGroupFriendlyName": {
+      "type": "string",
+      "defaultValue": "Desktop Application Group",
+      "metadata": {
+        "description": "AVD desktop application group friendly name"
+      }
+    },
+    "desktopAppGroupDescription": {
+      "type": "string",
+      "defaultValue": "Desktop Application Group for AVD",
+      "metadata": {
+        "description": "AVD desktop application group description"
+      }
+    },
+    "workspaceName": {
+      "type": "string",
+      "defaultValue": "avd-workspace",
+      "metadata": {
+        "description": "AVD workspace name"
+      }
+    },
+    "workspaceFriendlyName": {
+      "type": "string",
+      "defaultValue": "AVD Workspace",
+      "metadata": {
+        "description": "AVD workspace friendly name"
+      }
+    },
+    "workspaceDescription": {
+      "type": "string",
+      "defaultValue": "Azure Virtual Desktop Workspace",
+      "metadata": {
+        "description": "AVD workspace description"
+      }
+    },
+    "maxSessionLimit": {
+      "type": "int",
+      "defaultValue": 10,
+      "metadata": {
+        "description": "Maximum session limit"
+      }
+    },
+    "hostPoolType": {
+      "type": "string",
+      "defaultValue": "Pooled",
+      "allowedValues": [
+        "Personal",
+        "Pooled"
+      ],
+      "metadata": {
+        "description": "Host Pool type"
+      }
+    },
+    "loadBalancerType": {
+      "type": "string",
+      "defaultValue": "BreadthFirst",
+      "allowedValues": [
+        "BreadthFirst",
+        "DepthFirst"
+      ],
+      "metadata": {
+        "description": "Load balancing algorithm for Pooled Host Pool"
+      }
+    },
+    "tokenValidityLength": {
+      "type": "string",
+      "defaultValue": "PT8H",
+      "metadata": {
+        "description": "Host Pool token validity end time - in hours from start time"
+      }
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DesktopVirtualization/hostPools",
+      "apiVersion": "2022-09-09",
+      "name": "[parameters('hostPoolName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "friendlyName": "[parameters('hostPoolFriendlyName')]",
+        "description": "[parameters('hostPoolDescription')]",
+        "hostPoolType": "[parameters('hostPoolType')]",
+        "maxSessionLimit": "[parameters('maxSessionLimit')]",
+        "loadBalancerType": "[parameters('loadBalancerType')]",
+        "validationEnvironment": false,
+        "preferredAppGroupType": "Desktop",
+        "registrationInfo": {
+          "expirationTime": "[dateTimeAdd(utcNow('u'), parameters('tokenValidityLength'))]",
+          "token": null,
+          "registrationTokenOperation": "Update"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DesktopVirtualization/applicationGroups",
+      "apiVersion": "2022-09-09",
+      "name": "[parameters('desktopAppGroupName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DesktopVirtualization/hostPools', parameters('hostPoolName'))]"
+      ],
+      "properties": {
+        "friendlyName": "[parameters('desktopAppGroupFriendlyName')]",
+        "description": "[parameters('desktopAppGroupDescription')]",
+        "applicationGroupType": "Desktop",
+        "hostPoolArmPath": "[resourceId('Microsoft.DesktopVirtualization/hostPools', parameters('hostPoolName'))]"
+      }
+    },
+    {
+      "type": "Microsoft.DesktopVirtualization/workspaces",
+      "apiVersion": "2022-09-09",
+      "name": "[parameters('workspaceName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DesktopVirtualization/applicationGroups', parameters('desktopAppGroupName'))]"
+      ],
+      "properties": {
+        "friendlyName": "[parameters('workspaceFriendlyName')]",
+        "description": "[parameters('workspaceDescription')]",
+        "applicationGroupReferences": [
+          "[resourceId('Microsoft.DesktopVirtualization/applicationGroups', parameters('desktopAppGroupName'))]"
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "hostPoolName": {
+      "type": "string",
+      "value": "[parameters('hostPoolName')]"
+    },
+    "hostPoolId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.DesktopVirtualization/hostPools', parameters('hostPoolName'))]"
+    },
+    "applicationGroupName": {
+      "type": "string",
+      "value": "[parameters('desktopAppGroupName')]"
+    },
+    "applicationGroupId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.DesktopVirtualization/applicationGroups', parameters('desktopAppGroupName'))]"
+    },
+    "workspaceName": {
+      "type": "string",
+      "value": "[parameters('workspaceName')]"
+    },
+    "workspaceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.DesktopVirtualization/workspaces', parameters('workspaceName'))]"
+    }
+  }
+}
