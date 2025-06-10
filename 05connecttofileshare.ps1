@@ -1,10 +1,20 @@
 param(
+    [Parameter(Mandatory=$false)]
+    [ValidatePattern('^[a-z0-9]{3,24}$')]
     [string]$StorageAccountName = "sa29012025n002",
+    
+    [Parameter(Mandatory=$false)]
+    [ValidatePattern('^[a-z0-9\-]{3,63}$')]
     [string]$ShareName = "share",
+    
+    [Parameter(Mandatory=$false)]
+    [ValidateNotNullOrEmpty()]
     [string]$ResourceGroupName = "new-week-rg",
+    
+    [Parameter(Mandatory=$false)]
+    [ValidatePattern('^[A-Z]$')]
     [string]$DriveLetter = "Z"
 )
-
 # Ensure user is logged into Azure
 try {
     $context = Get-AzContext
@@ -29,20 +39,41 @@ try {
 }
 
 # Test network connectivity first
-Write-Output "Testing network connectivity to $StorageAccountName.file.core.windows.net on port 445..."
-$connectTestResult = Test-NetConnection -ComputerName "$StorageAccountName.file.core.windows.net" -Port 445
+$fileEndpoint = "$StorageAccountName.file.core.windows.net"
+Write-Output "Testing network connectivity to $fileEndpoint on port 445..."
 
-if ($connectTestResult.TcpTestSucceeded) {
-    Write-Output "Network connectivity test passed"
+try {
+    $connectTestResult = Test-NetConnection -ComputerName $fileEndpoint -Port 445 -WarningAction SilentlyContinue
+    
+    if (-not $connectTestResult.TcpTestSucceeded) {
+        Write-Error "Network connectivity test failed. Unable to reach $fileEndpoint on port 445."
+        Write-Output "This could be due to:"
+        Write-Output "  - Corporate firewall blocking port 445"
+        Write-Output "  - ISP blocking SMB traffic"
+        Write-Output "  - Network configuration issues"
+        Write-Output "Consider using Azure VPN Gateway or ExpressRoute."
+        exit 1
+    }
+    
+    Write-Output "Network connectivity test passed (Response time: $($connectTestResult.PingReplyDetails.RoundtripTime)ms)"
+} catch {
+    Write-Error "Network connectivity test encountered an error: $_"
+    exit 1
+}
     
     try {
         # Disconnect any existing drive mapping
         Write-Output "Checking for existing drive mapping on $DriveLetter`:"
         try {
-            $null = net use "$DriveLetter`:" /delete /yes 2>&1
-            Write-Output "Removed existing drive mapping"
+            $existingMapping = Get-WmiObject -Class Win32_LogicalDisk | Where-Object { $_.DeviceID -eq "$DriveLetter`:" }
+            if ($existingMapping) {
+                $null = net use "$DriveLetter`:" /delete /yes 2>&1
+                Write-Output "Removed existing drive mapping"
+            } else {
+                Write-Output "No existing drive mapping found"
+            }
         } catch {
-            Write-Output "No existing drive mapping found"
+            Write-Output "No existing drive mapping found or failed to remove: $($_.Exception.Message)"
         }
         
         # Mount the drive using net use command
@@ -70,7 +101,7 @@ if ($connectTestResult.TcpTestSucceeded) {
         Write-Output "Manual command to try:"
         Write-Output "net use $DriveLetter`: `"\\$StorageAccountName.file.core.windows.net\$ShareName`" /user:`"Azure\$StorageAccountName`" `"<storage-account-key>`" /persistent:no"
     }
-} else {
+ else {
     Write-Error "Network connectivity test failed. Unable to reach $StorageAccountName.file.core.windows.net on port 445."
     Write-Output "Check to make sure your organization or ISP is not blocking port 445, or use Azure P2S VPN, Azure S2S VPN, or Express Route to tunnel SMB traffic over a different port."
     exit 1
