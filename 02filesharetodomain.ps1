@@ -30,7 +30,7 @@ try {
     $PowerShellGetModule = Get-Module PowerShellGet -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1
     if (-not $PowerShellGetModule -or $PowerShellGetModule.Version -lt [Version]"2.2.5") {
         Write-Output "Installing PowerShellGet module..."
-        Install-Module -Name PowerShellGet -MinimumVersion 2.2.5 -Force -AllowClobber -Scope CurrentUser -SkipPublisherCheck
+        Install-Module -Name PowerShellGet -MinimumVersion 2.2.5 -Force -AllowClobber -Scope CurrentUser -SkipPublisherCheck -Confirm:$false
         Remove-Module PowerShellGet -Force -ErrorAction SilentlyContinue
         Import-Module PowerShellGet -MinimumVersion 2.2.5 -Force
     }
@@ -47,7 +47,7 @@ try {
         $InstMod = Get-Module $M.Key -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1
         if ( -not $InstMod -or $InstMod.Version -lt [Version]$M.Value ) {
             Write-Output "Install $($M.Key) module..."
-            Install-Module -Name $M.Key -MinimumVersion $($M.Value) -Force -AllowClobber
+            Install-Module -Name $M.Key -MinimumVersion $($M.Value) -Force -AllowClobber -Scope CurrentUser -SkipPublisherCheck -Confirm:$false
         }
     }
 
@@ -62,7 +62,7 @@ try {
             $InstMod = Get-Module $M.Key -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1
             if ( -not $InstMod -or $InstMod.Version -lt [Version]$M.Value ) {
                 Write-Output "Install $($M.Key) module..."
-                Install-Module -Name $M.Key -MinimumVersion $($M.Value) -Force -AllowClobber
+                Install-Module -Name $M.Key -MinimumVersion $($M.Value) -Force -AllowClobber -Scope CurrentUser -SkipPublisherCheck -Confirm:$false
             }
         }
     }
@@ -101,9 +101,13 @@ Write-Output "Install AzFilesHybrid module..."
         Write-Output "ZIP file extracted to $extractionPath"
         Expand-Archive -Path $zipFilePath -DestinationPath $extractionPath -Force
 
-        Write-Output "Copy AzFliesHybrid module to PowerShell module path"
+        Write-Output "Copy AzFilesHybrid module to PowerShell module path"
+        # Save current location
+        $originalLocation = Get-Location
         Set-Location $extractionPath
         . .\CopyToPSPath.ps1
+        # Restore original location before cleanup
+        Set-Location $originalLocation
   
         Write-Output "Remove temporary files"
         Remove-Item -Path $zipFilePath -Force
@@ -280,7 +284,13 @@ $account = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -AccountNa
 # Create the premium file share
 $SAKey = (Get-AzStorageAccountKey -ResourceGroupName $ResourceGroupName -AccountName $StorageAccountName)[0].Value
 $SAContext = New-AzStorageContext -StorageAccountName $StorageAccountName -StorageAccountKey $SAKey
-$fileShare = New-AzStorageShare -Context $SAContext -Name $ShareName -QuotaGiB 100
+
+# Create the file share first
+$fileShare = New-AzStorageShare -Context $SAContext -Name $ShareName
+
+# Set the quota for premium file share (required for premium storage)
+Set-AzStorageShareQuota -ShareName $ShareName -Context $SAContext -Quota 100
+
 Write-Output "Premium file share '$ShareName' created successfully with 100 GiB quota."
 
 $Uri = "\\" + $account.PrimaryEndpoints.File.Split('/')[2] + "\" + $fileShare.Name
