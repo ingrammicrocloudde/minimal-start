@@ -103,3 +103,6 @@ output applicationGroupName string = applicationGroup.name
 output applicationGroupId string = applicationGroup.id
 output workspaceName string = workspace.name
 output workspaceId string = workspace.id
+
+// Deployment example:
+//az deployment group create --resource-group "resource-group-rg" --template-file 06setupAVD.bicep
