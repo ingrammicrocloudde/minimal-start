@@ -120,7 +120,7 @@ Write-Output "Install AzFilesHybrid module..."
         # URL der ZIP-Datei for AzFilesHybrid
         $zipUrl = "https://github.com/Azure-Samples/azure-files-samples/releases/download/v0.3.2/AzFilesHybrid.zip"
 
-        # TemporÃ¤res Verzeichnis erstellen
+        # Temporaeres Verzeichnis erstellen
         $tempDir = [System.IO.Path]::GetTempPath()
         $zipFilePath = Join-Path -Path $tempDir -ChildPath "AzFilesHybrid.zip"
 
