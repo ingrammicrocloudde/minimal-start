@@ -10,7 +10,7 @@ This repository contains ARM templates for deploying:
 
 ## Deploy to Azure
 
-Click the button below to deploy this template to your Azure subscription:
+Click the button below to deploy the base template to your Azure subscription:
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fingrammicrocloudde%2Fminimal-start%2Frefs%2Fheads%2Fmain%2Fdeploy.json%0A)
 
@@ -25,6 +25,9 @@ You can customize the deployment with these parameters:
 
 See `parameters.json` for default values and more options.
 
+Click the button below to deploy the AVD template to your Azure subscription: 
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fingrammicrocloudde%2Fminimal-start%2Frefs%2Fheads%2Fmain%2F06deployavd.json)
 
 ## Deployment options: 
 
