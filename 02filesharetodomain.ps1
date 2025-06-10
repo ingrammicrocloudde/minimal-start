@@ -1,54 +1,3 @@
-<#
-.SYNOPSIS
-    This script configures an Azure Storage Account and integrates it with Active Directory.
-
-.DESCRIPTION
-    The script performs the following tasks:
-    - Checks if the script is running with administrative privileges.
-    - Installs required PowerShell modules if they are not already installed.
-    - Configures the Azure Storage Account.
-    - Integrates the Storage Account with Active Directory.
-    - Sets default permissions for the Storage Account.
-    - Optionally configures a private DNS zone.
-
-.PARAMETER ResourceGroupName
-    The name of the resource group where the storage account is located. This parameter is mandatory.
-
-.PARAMETER StorageAccountName
-    The name of the storage account to be configured. This parameter is mandatory.
-
-.PARAMETER ShareName
-    The name of the file share to be created in the storage account. This parameter is mandatory.
-
-.PARAMETER OuDistinguishedName
-    The distinguished name of the organizational unit (OU) in Active Directory where the storage account will be integrated.
-
-.PARAMETER defaultPermission
-    The default permission to be set for the storage account. Valid values are:
-    - None
-    - StorageFileDataSmbShareContributor
-    - StorageFileDataSmbShareReader
-    - StorageFileDataSmbShareElevatedContributor
-    Default value is "StorageFileDataSmbShareContributor".
-
-.PARAMETER privateDnsZoneName
-    The name of the private DNS zone to be configured. Default value is "privatelink.file.core.windows.net".
-
-.PARAMETER ADDnsZone
-    A switch parameter to indicate if an AD DNS zone should be configured.
-
-.PARAMETER CheckConfiguration
-    A switch parameter to indicate if the script should check the existing configuration before making changes.
-
-.EXAMPLE
-    .\Add-StorageAccount2AD.ps1 -ResourceGroupName "MyResourceGroup" -StorageAccountName "mystorageaccount" -ShareName "myshare" -OuDistinguishedName "OU=Computers,OU=MyOU,DC=mydomain,DC=com"
-
-.NOTES
-    Version: 0.5.3
-    Author: Robert Rasp (robert.rasp@ingrammicro.com)
-    Date: 3.03.2025
-#>
-
 param(
     [string]$ResourceGroupName = "dark-n-stormy-rg",
     [string]$StorageAccountName = "sa29012025n002",
@@ -73,9 +22,19 @@ if (-not $IsAdmin) {
 }
 
 try {
-# Change the execution policy to unblock importing AzFilesHybrid.psm1 module
-    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope:Process
+# Change the execution policy to bypass for importing AzFilesHybrid.psm1 module
+    Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
     Set-PSRepository -Name "PSGallery" -InstallationPolicy:Trusted
+    
+    # Install PowerShellGet if needed without restart warnings
+    $PowerShellGetModule = Get-Module PowerShellGet -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1
+    if (-not $PowerShellGetModule -or $PowerShellGetModule.Version -lt [Version]"2.2.5") {
+        Write-Output "Installing PowerShellGet module..."
+        Install-Module -Name PowerShellGet -MinimumVersion 2.2.5 -Force -AllowClobber -Scope CurrentUser -SkipPublisherCheck
+        Remove-Module PowerShellGet -Force -ErrorAction SilentlyContinue
+        Import-Module PowerShellGet -MinimumVersion 2.2.5 -Force
+    }
+    
     Write-Output "Check installed modules..."
     $Modules = @{
         "Az.Accounts" = "3.0.5"
@@ -84,7 +43,6 @@ try {
         "Az.Resources" = "7.5.0"
         "Az.PrivateDns" = "1.1.0"
     }
-
     foreach ( $M in $Modules.GetEnumerator()) {
         $InstMod = Get-Module $M.Key -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1
         if ( -not $InstMod -or $InstMod.Version -lt [Version]$M.Value ) {
