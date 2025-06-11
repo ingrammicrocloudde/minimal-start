@@ -53,7 +53,7 @@ To get access to the AVD functionality the following roles must be assigned.
 - Virtual Machine Administrator Login
 - Virtual Machine User  Login
 
-It is hghly recommended to create an Entra Id group for the AVD users and a second group for the AVD administrators. These groups sould be assigned the proper roles.
+It is highly recommended to create an Entra Id group for the AVD users and a second group for the AVD administrators. These groups should be assigned the proper roles.
 
 ## Deployment options for minimal template
 
