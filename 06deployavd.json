@@ -115,11 +115,10 @@
         "description": "Current UTC time used for token expiration calculation"
       }
     },
-    "userPrincipalName": {
+"userPrincipalName": {
       "type": "string",
-      "defaultValue": "Christoph.Zapatka@immpnde.onmicrosoft.com",
       "metadata": {
-        "description": "User Principal Name to assign AVD roles to"
+        "description": "User Principal Name to assign AVD roles to (e.g., user@domain.com)"
       }
     },
     "managedIdentityName": {
@@ -149,6 +148,20 @@
       ],
       "properties": {
         "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9')]",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('managedIdentityName'))).principalId]",
+        "principalType": "ServicePrincipal"
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceGroup().id, parameters('managedIdentityName'), 'Directory Readers')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('managedIdentityName'))]"
+      ],
+      "scope": "/",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '88d8e3e3-8f55-4a1e-953a-9b9898b8876b')]",
         "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('managedIdentityName'))).principalId]",
         "principalType": "ServicePrincipal"
       }
@@ -211,7 +224,8 @@
       "location": "[parameters('location')]",
       "dependsOn": [
         "[resourceId('Microsoft.DesktopVirtualization/workspaces', parameters('workspaceName'))]",
-        "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceGroup().id, parameters('managedIdentityName'), 'User Access Administrator'))]"
+        "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceGroup().id, parameters('managedIdentityName'), 'User Access Administrator'))]",
+        "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceGroup().id, parameters('managedIdentityName'), 'Directory Readers'))]"
       ],
       "identity": {
         "type": "UserAssigned",
@@ -225,7 +239,7 @@
         "timeout": "PT30M",
         "retentionInterval": "P1D",
         "arguments": "[format('-userPrincipalName \"{0}\" -resourceGroupName \"{1}\"', parameters('userPrincipalName'), variables('resourceGroupName'))]",
-        "scriptContent": "param([string]$userPrincipalName, [string]$resourceGroupName)\n\n# Define the roles to assign\n$roles = @(\n    'Desktop Virtualization Application Group Reader',\n    'Desktop Virtualization Contributor',\n    'Virtual Machine Administrator Login',\n    'Virtual Machine User Login',\n    'Desktop Virtualization Workspace Reader'\n)\n\nWrite-Output \"Assigning roles to user: $userPrincipalName\"\nWrite-Output \"Resource Group: $resourceGroupName\"\n\n# Get user object\ntry {\n    $user = Get-AzADUser -UserPrincipalName $userPrincipalName\n    if (-not $user) {\n        throw \"User not found\"\n    }\n    Write-Output \"User Object ID: $($user.Id)\"\n}\ncatch {\n    Write-Error \"User not found: $userPrincipalName\"\n    throw\n}\n\n# Assign each role\nforeach ($role in $roles) {\n    Write-Output \"Assigning role: $role\"\n    \n    try {\n        $existingAssignment = Get-AzRoleAssignment -ObjectId $user.Id -RoleDefinitionName $role -ResourceGroupName $resourceGroupName -ErrorAction SilentlyContinue\n        \n        if ($existingAssignment) {\n            Write-Output \"Role already assigned: $role\"\n        } else {\n            New-AzRoleAssignment -ObjectId $user.Id -RoleDefinitionName $role -ResourceGroupName $resourceGroupName\n            Write-Output \"Successfully assigned role: $role\"\n        }\n    }\n    catch {\n        Write-Warning \"Failed to assign role: $role - $($_.Exception.Message)\"\n    }\n}\n\nWrite-Output \"Role assignment completed!\"\n\n# Verify role assignments\n$assignments = Get-AzRoleAssignment -ObjectId $user.Id -ResourceGroupName $resourceGroupName\nWrite-Output \"Current role assignments:\"\nforeach ($assignment in $assignments) {\n    Write-Output \"- $($assignment.RoleDefinitionName)\"\n}\n\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['userObjectId'] = $user.Id\n$DeploymentScriptOutputs['assignedRoles'] = $assignments.Count"
+        "scriptContent": "param([string]$userPrincipalName, [string]$resourceGroupName)\n\n# Define the roles to assign\n$roles = @(\n    'Desktop Virtualization Application Group Reader',\n    'Desktop Virtualization Contributor',\n    'Virtual Machine Administrator Login',\n    'Virtual Machine User Login',\n    'Desktop Virtualization Workspace Reader'\n)\n\nWrite-Output \"Assigning roles to user: $userPrincipalName\"\nWrite-Output \"Resource Group: $resourceGroupName\"\n\n# Wait for permissions to propagate\nStart-Sleep -Seconds 60\n\n# Get user object with multiple lookup methods\n$user = $null\n$userObjectId = $null\n\n# Method 1: Try Get-AzADUser with UPN\ntry {\n    Write-Output \"Attempting to find user with UPN: $userPrincipalName\"\n    $user = Get-AzADUser -UserPrincipalName $userPrincipalName -ErrorAction SilentlyContinue\n    if ($user) {\n        $userObjectId = $user.Id\n        Write-Output \"Found user via UPN. Object ID: $userObjectId\"\n    }\n}\ncatch {\n    Write-Output \"Method 1 failed: $($_.Exception.Message)\"\n}\n\n# Method 2: Try Get-AzADUser with Mail property\nif (-not $user) {\n    try {\n        Write-Output \"Attempting to find user with Mail property: $userPrincipalName\"\n        $user = Get-AzADUser -Mail $userPrincipalName -ErrorAction SilentlyContinue\n        if ($user) {\n            $userObjectId = $user.Id\n            Write-Output \"Found user via Mail. Object ID: $userObjectId\"\n        }\n    }\n    catch {\n        Write-Output \"Method 2 failed: $($_.Exception.Message)\"\n    }\n}\n\n# Method 3: Try searching by display name if UPN contains displayable part\nif (-not $user) {\n    try {\n        $displayNamePart = $userPrincipalName.Split('@')[0].Replace('.', ' ')\n        Write-Output \"Attempting to find user by display name pattern: $displayNamePart\"\n        $users = Get-AzADUser -Filter \"startswith(displayName,'$($displayNamePart.Replace(' ', ''))')\" -ErrorAction SilentlyContinue\n        foreach ($u in $users) {\n            if ($u.UserPrincipalName -eq $userPrincipalName -or $u.Mail -eq $userPrincipalName) {\n                $user = $u\n                $userObjectId = $user.Id\n                Write-Output \"Found user via display name search. Object ID: $userObjectId\"\n                break\n            }\n        }\n    }\n    catch {\n        Write-Output \"Method 3 failed: $($_.Exception.Message)\"\n    }\n}\n\n# Method 4: List all users and find match (last resort)\nif (-not $user) {\n    try {\n        Write-Output \"Attempting to find user by listing all users (this may take time)...\"\n        $allUsers = Get-AzADUser -ErrorAction SilentlyContinue\n        foreach ($u in $allUsers) {\n            if ($u.UserPrincipalName -eq $userPrincipalName -or $u.Mail -eq $userPrincipalName) {\n                $user = $u\n                $userObjectId = $user.Id\n                Write-Output \"Found user via full search. Object ID: $userObjectId\"\n                break\n            }\n        }\n    }\n    catch {\n        Write-Output \"Method 4 failed: $($_.Exception.Message)\"\n    }\n}\n\n# Final check\nif (-not $user -or -not $userObjectId) {\n    Write-Error \"User not found after trying all methods: $userPrincipalName\"\n    Write-Output \"Please verify:\"\n    Write-Output \"1. The user exists in Azure AD\"\n    Write-Output \"2. The UPN is correct\"\n    Write-Output \"3. The managed identity has Directory.Read permissions\"\n    throw \"User lookup failed\"\n}\n\nWrite-Output \"Successfully found user: $($user.DisplayName) ($userPrincipalName)\"\nWrite-Output \"User Object ID: $userObjectId\"\n\n# Assign each role\nforeach ($role in $roles) {\n    Write-Output \"Assigning role: $role\"\n    \n    try {\n        $existingAssignment = Get-AzRoleAssignment -ObjectId $userObjectId -RoleDefinitionName $role -ResourceGroupName $resourceGroupName -ErrorAction SilentlyContinue\n        \n        if ($existingAssignment) {\n            Write-Output \"Role already assigned: $role\"\n        } else {\n            New-AzRoleAssignment -ObjectId $userObjectId -RoleDefinitionName $role -ResourceGroupName $resourceGroupName\n            Write-Output \"Successfully assigned role: $role\"\n        }\n    }\n    catch {\n        Write-Warning \"Failed to assign role: $role - $($_.Exception.Message)\"\n    }\n}\n\nWrite-Output \"Role assignment completed!\"\n\n# Verify role assignments\n$assignments = Get-AzRoleAssignment -ObjectId $userObjectId -ResourceGroupName $resourceGroupName\nWrite-Output \"Current role assignments for user:\"\nforeach ($assignment in $assignments) {\n    Write-Output \"- $($assignment.RoleDefinitionName)\"\n}\n\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['userObjectId'] = $userObjectId\n$DeploymentScriptOutputs['userDisplayName'] = $user.DisplayName\n$DeploymentScriptOutputs['assignedRoles'] = $assignments.Count"
       }
     }
   ],
