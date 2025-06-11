@@ -45,6 +45,16 @@ Please **click the button below** to deploy the AVD template to your Azure subsc
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fingrammicrocloudde%2Fminimal-start%2Frefs%2Fheads%2Fmain%2F06deployavd.json)
 
+To get access to the AVD functionality the following roles must be assigned.
+
+- Desktop Virtualization Application Group Reader
+- Desktop Virtualization Workspace Reader
+- Desktop Virtualization Contributor
+- Virtual Machine Administrator Login
+- Virtual Machine User  Login
+
+It is hghly recommended to create an Entra Id group for the AVD users and a second group for the AVD administrators. These groups sould be assigned the proper roles.
+
 ## Deployment options for minimal template
 
 **Azure CLI:**
