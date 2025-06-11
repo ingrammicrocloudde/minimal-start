@@ -47,17 +47,17 @@ Please **click the button below** to deploy the AVD template to your Azure subsc
 
 To get access to the AVD functionality the following roles must be assigned.
 
-- Desktop Virtualization Application Group Reader
-- Desktop Virtualization Workspace Reader
-- Desktop Virtualization Contributor
-- Virtual Machine Administrator Login
-- Virtual Machine User  Login
+- Desktop Virtualization Application Group Reader (aebf23d0-b568-4e86-b8f9-fe83a2c6ab55)
+- Desktop Virtualization Workspace Reader (0fa44ee9-7a7d-466b-9bb2-2bf446b1204d)
+- Desktop Virtualization Contributor (082f0a83-3be5-4ba1-904c-961cca79b387)
+- Virtual Machine Administrator  (1c0163c0-47e6-4577-8991-ea5c82e286e4)
+- Virtual Machine User Login (fb879df8-f326-4884-b1cf-06f3ad86be52)
 
 It is highly recommended to create an Entra Id group for the AVD users and a second group for the AVD administrators. These groups should be assigned the proper roles.
 
 ## Deployment options for minimal template
 
-**Azure CLI:**
+**BASH:**
 
 ```sh
 az deployment group create --resource-group YourResourceGroup --template-file deploy.json --parameters parameters.json
@@ -70,3 +70,44 @@ or
 ```ps
 New-AzResourceGroupDeployment -ResourceGroupName YourResourceGroup -TemplateFile deploy.json -TemplateParameterFile parameters.json
 ```
+
+## Assign roles with AZ CLI
+
+**BASH**
+
+```sh
+#!/bin/bash
+ASSIGNEE="heinz.test@beispiel.com"
+SCOPE="/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/MyResourceGroup"
+
+ROLES=(
+    "Desktop Virtualization Application Group Reader"
+    "Desktop Virtualization Workspace Reader" 
+    "Desktop Virtualization Contributor"
+    "Virtual Machine Administrator Login"
+    "Virtual Machine User Login"
+)
+
+for role in "${ROLES[@]}"; do
+    az role assignment create --assignee "$ASSIGNEE" --assignee-principal-type ServicePrincipal --role "$role" --scope "$SCOPE"
+done
+```
+
+if you're used to powershell use this.
+
+**Powershell**
+
+```ps
+$roles = @(
+    "aebf23d0-b568-4e86-b8f9-fe83a2c6ab55",  # Desktop Virtualization Application Group Reader
+    "0fa44ee9-7a7d-466b-9bb2-2bf446b1204d",  # Desktop Virtualization Workspace Reader
+    "082f0a83-3be5-4ba1-904c-961cca79b387",  # Desktop Virtualization Contributor
+    "1c0163c0-47e6-4577-8991-ea5c82e286e4",  # Virtual Machine Administrator Login
+    "fb879df8-f326-4884-b1cf-06f3ad86be52"   # Virtual Machine User Login
+)
+
+foreach ($role in $roles) {
+    New-AzRoleAssignment -SignInName "heinz.test@beispiel.com" -RoleDefinitionId $role -Scope "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/MyResourceGroup"
+}
+```
+
