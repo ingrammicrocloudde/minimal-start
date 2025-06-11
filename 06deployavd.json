@@ -170,6 +170,7 @@
       }
     }
   ],
+  
   "outputs": {
     "hostPoolName": {
       "type": "string",
