@@ -92,7 +92,7 @@
     },
     "loadBalancerType": {
       "type": "string",
-      "defaultValue": "BreadthFirst",
+      "defaultValue": "DepthFirst",
       "allowedValues": [
         "BreadthFirst",
         "DepthFirst"
@@ -106,6 +106,13 @@
       "defaultValue": "PT8H",
       "metadata": {
         "description": "Host Pool token validity end time - in hours from start time"
+      }
+    },
+    "currentTime": {
+      "type": "string",
+      "defaultValue": "[utcNow('u')]",
+      "metadata": {
+        "description": "Current UTC time used for token expiration calculation"
       }
     }
   },
@@ -126,7 +133,7 @@
         "validationEnvironment": false,
         "preferredAppGroupType": "Desktop",
         "registrationInfo": {
-          "expirationTime": "[dateTimeAdd(utcNow('u'), parameters('tokenValidityLength'))]",
+          "expirationTime": "[dateTimeAdd(parameters('currentTime'), parameters('tokenValidityLength'))]",
           "token": null,
           "registrationTokenOperation": "Update"
         }
