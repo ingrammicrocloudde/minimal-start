@@ -95,10 +95,23 @@
       "type": "string",
       "defaultValue": "Central European Standard Time",
       "metadata": {
-        "description": "Time zone for the Windows 11 client VM"
+        "description": "Time zone for the VMs"
+      }
+    },
+    "enableEntraJoin": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Enable Entra ID (Azure AD) join for the VMs"
+      }
+    },
+    "entraJoinUserAssignedIdentityId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Resource ID of the user-assigned managed identity for Entra join (optional)"
       }
     }
-    
   },
   "variables": {
     "hubSubnetName": "default",
@@ -108,12 +121,14 @@
     "networkSecurityGroupName": "[concat(parameters('vmName'), '-nsg')]",
     "clientPublicIPAddressName": "[concat(parameters('clientVmName'), '-pip')]",
     "clientNetworkInterfaceName": "[concat(parameters('clientVmName'), '-nic')]",
-    "clientNetworkSecurityGroupName": "[concat(parameters('clientVmName'), '-nsg')]"
+    "clientNetworkSecurityGroupName": "[concat(parameters('clientVmName'), '-nsg')]",    
+    "aadLoginExtensionName": "AADLoginForWindows",
+    "aadLoginExtensionVersion": "1.0"
   },
   "resources": [
     {
       "type": "Microsoft.Network/virtualNetworks",
-      "apiVersion": "2022-07-01",
+      "apiVersion": "2023-04-01",
       "name": "[parameters('hubVnetName')]",
       "location": "[parameters('location')]",
       "properties": {
@@ -134,7 +149,7 @@
     },
     {
       "type": "Microsoft.Network/virtualNetworks",
-      "apiVersion": "2022-07-01",
+      "apiVersion": "2023-04-01",
       "name": "[parameters('spokeVnetName')]",
       "location": "[parameters('location')]",
       "properties": {
@@ -155,7 +170,7 @@
     },
     {
       "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
-      "apiVersion": "2022-07-01",
+      "apiVersion": "2023-04-01",
       "name": "[concat(parameters('hubVnetName'), '/peering-to-spoke')]",
       "dependsOn": [
         "[resourceId('Microsoft.Network/virtualNetworks', parameters('hubVnetName'))]",
@@ -173,7 +188,7 @@
     },
     {
       "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
-      "apiVersion": "2022-07-01",
+      "apiVersion": "2023-04-01",
       "name": "[concat(parameters('spokeVnetName'), '/peering-to-hub')]",
       "dependsOn": [
         "[resourceId('Microsoft.Network/virtualNetworks', parameters('hubVnetName'))]",
@@ -191,14 +206,14 @@
     },
     {
       "type": "Microsoft.Network/publicIPAddresses",
-      "apiVersion": "2022-07-01",
+      "apiVersion": "2023-04-01",
       "name": "[variables('publicIPAddressName')]",
       "location": "[parameters('location')]",
       "sku": {
         "name": "Standard"
       },
       "properties": {
-        "publicIPAllocationMethod": "static",
+        "publicIPAllocationMethod": "Static",
         "dnsSettings": {
           "domainNameLabel": "[toLower(concat(parameters('vmName'), uniqueString(resourceGroup().id)))]"
         }
@@ -206,7 +221,7 @@
     },
     {
       "type": "Microsoft.Network/networkSecurityGroups",
-      "apiVersion": "2022-07-01",
+      "apiVersion": "2023-04-01",
       "name": "[variables('networkSecurityGroupName')]",
       "location": "[parameters('location')]",
       "properties": {
@@ -242,7 +257,7 @@
     },
     {
       "type": "Microsoft.Network/networkInterfaces",
-      "apiVersion": "2022-07-01",
+      "apiVersion": "2023-04-01",
       "name": "[variables('networkInterfaceName')]",
       "location": "[parameters('location')]",
       "dependsOn": [
@@ -272,12 +287,13 @@
     },
     {
       "type": "Microsoft.Compute/virtualMachines",
-      "apiVersion": "2022-11-01",
+      "apiVersion": "2023-03-01",
       "name": "[parameters('vmName')]",
       "location": "[parameters('location')]",
       "dependsOn": [
         "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
       ],
+      "identity": "[if(and(parameters('enableEntraJoin'), not(empty(parameters('entraJoinUserAssignedIdentityId')))), createObject('type', 'UserAssigned', 'userAssignedIdentities', createObject(parameters('entraJoinUserAssignedIdentityId'), createObject())), createObject('type', 'SystemAssigned'))]",
       "properties": {
         "hardwareProfile": {
           "vmSize": "[parameters('vmSize')]"
@@ -322,9 +338,9 @@
         }
       }
     },
-      {
+    {
       "type": "Microsoft.Network/publicIPAddresses",
-      "apiVersion": "2022-07-01",
+      "apiVersion": "2023-04-01",
       "name": "[variables('clientPublicIPAddressName')]",
       "location": "[parameters('location')]",
       "sku": {
@@ -339,7 +355,7 @@
     },
     {
       "type": "Microsoft.Network/networkSecurityGroups",
-      "apiVersion": "2022-07-01",
+      "apiVersion": "2023-04-01",
       "name": "[variables('clientNetworkSecurityGroupName')]",
       "location": "[parameters('location')]",
       "properties": {
@@ -362,7 +378,7 @@
     },
     {
       "type": "Microsoft.Network/networkInterfaces",
-      "apiVersion": "2022-07-01",
+      "apiVersion": "2023-04-01",
       "name": "[variables('clientNetworkInterfaceName')]",
       "location": "[parameters('location')]",
       "dependsOn": [
@@ -392,12 +408,13 @@
     },
     {
       "type": "Microsoft.Compute/virtualMachines",
-      "apiVersion": "2022-11-01",
+      "apiVersion": "2023-03-01",
       "name": "[parameters('clientVmName')]",
       "location": "[parameters('location')]",
       "dependsOn": [
         "[resourceId('Microsoft.Network/networkInterfaces', variables('clientNetworkInterfaceName'))]"
       ],
+      "identity": "[if(and(parameters('enableEntraJoin'), not(empty(parameters('entraJoinUserAssignedIdentityId')))), createObject('type', 'UserAssigned', 'userAssignedIdentities', createObject(parameters('entraJoinUserAssignedIdentityId'), createObject())), createObject('type', 'SystemAssigned'))]",
       "properties": {
         "hardwareProfile": {
           "vmSize": "[parameters('clientVmSize')]"
@@ -441,6 +458,44 @@
           ]
         }
       }
+    },
+    {
+      "condition": "[parameters('enableEntraJoin')]",
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2023-03-01",
+      "name": "[concat(parameters('vmName'), '/', variables('aadLoginExtensionName'))]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', parameters('vmName'))]"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Azure.ActiveDirectory",
+        "type": "[variables('aadLoginExtensionName')]",
+        "typeHandlerVersion": "[variables('aadLoginExtensionVersion')]",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "mdmId": ""
+        }
+      }
+    },
+    {
+      "condition": "[parameters('enableEntraJoin')]",
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2023-03-01",
+      "name": "[concat(parameters('clientVmName'), '/', variables('aadLoginExtensionName'))]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', parameters('clientVmName'))]"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Azure.ActiveDirectory",
+        "type": "[variables('aadLoginExtensionName')]",
+        "typeHandlerVersion": "[variables('aadLoginExtensionVersion')]",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "mdmId": ""
+        }
+      }
     }
   ],
   "outputs": {
@@ -448,10 +503,13 @@
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))).dnsSettings.fqdn]"
     },
-    
-     "clientVmFqdn": {
+    "clientVmFqdn": {
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('clientPublicIPAddressName'))).dnsSettings.fqdn]"
+    },
+    "entraJoinEnabled": {
+      "type": "bool",
+      "value": "[parameters('enableEntraJoin')]"
     }
   }
 }
