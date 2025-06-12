@@ -73,7 +73,9 @@ New-AzResourceGroupDeployment -ResourceGroupName YourResourceGroup -TemplateFile
 
 ## Assign roles with AZ CLI
 
-**BASH**
+We will run the commands in sequence, adding more rights step by step.
+
+### BASH
 
 ```sh
 az role assignment create --assignee heinz.test@beispiel.com  --role "Desktop Virtualization Application Group Reader" --scope /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/MyResourceGroup
