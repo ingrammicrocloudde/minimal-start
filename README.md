@@ -73,6 +73,8 @@ New-AzResourceGroupDeployment -ResourceGroupName YourResourceGroup -TemplateFile
 
 ## Assign roles with AZ CLI
 
+We will run the commands in sequence, adding more rights step by step.
+
 **BASH**
 
 ```sh
