@@ -1,6 +1,7 @@
 param(
     [string]$ResourceGroupName = "new-week-rg",
-    [string]$StorageAccountName = "sa29012025n002",
+    [string]$RandomSuffix = (Get-Random -Minimum 1000 -Maximum 9999),
+    [string]$StorageAccountName = "sanavd$RandomSuffix",
     [string]$ShareName = "share",
     [string]$OuDistinguishedName, # = "OU=Computers,OU=OU1,OU=RootOU,DC=truekillrob,DC=com",
     [ValidateSet("None","StorageFileDataSmbShareContributor","StorageFileDataSmbShareReader","StorageFileDataSmbShareElevatedContributor")] # Set the default permission of your choice
@@ -116,8 +117,14 @@ Write-Output "Install AzFilesHybrid module..."
     catch {
         throw "Failed to extract ZIP file: $_"
     }
-    Write-Warning "The AzFilesHybrid module has been installed. Please open a new PowerShell-Window and restart the script."
-    exit
+    Write-Output "The AzFilesHybrid module has been installed. Attempting to import it now..."
+try {
+    Import-Module -Name AzFilesHybrid -Force -WarningAction:SilentlyContinue
+    Write-Output "AzFilesHybrid module imported successfully."
+} catch {
+    Write-Warning "Failed to import AzFilesHybrid module. You may need to restart PowerShell and run the script again."
+    throw "Module import failed: $_"
+}
 }
 
 try {

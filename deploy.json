@@ -458,45 +458,8 @@
           ]
         }
       }
-    },
-    {
-      "condition": "[parameters('enableEntraJoin')]",
-      "type": "Microsoft.Compute/virtualMachines/extensions",
-      "apiVersion": "2023-03-01",
-      "name": "[concat(parameters('vmName'), '/', variables('aadLoginExtensionName'))]",
-      "location": "[parameters('location')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Compute/virtualMachines', parameters('vmName'))]"
-      ],
-      "properties": {
-        "publisher": "Microsoft.Azure.ActiveDirectory",
-        "type": "[variables('aadLoginExtensionName')]",
-        "typeHandlerVersion": "[variables('aadLoginExtensionVersion')]",
-        "autoUpgradeMinorVersion": true,
-        "settings": {
-          "mdmId": ""
-        }
-      }
-    },
-    {
-      "condition": "[parameters('enableEntraJoin')]",
-      "type": "Microsoft.Compute/virtualMachines/extensions",
-      "apiVersion": "2023-03-01",
-      "name": "[concat(parameters('clientVmName'), '/', variables('aadLoginExtensionName'))]",
-      "location": "[parameters('location')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Compute/virtualMachines', parameters('clientVmName'))]"
-      ],
-      "properties": {
-        "publisher": "Microsoft.Azure.ActiveDirectory",
-        "type": "[variables('aadLoginExtensionName')]",
-        "typeHandlerVersion": "[variables('aadLoginExtensionVersion')]",
-        "autoUpgradeMinorVersion": true,
-        "settings": {
-          "mdmId": ""
-        }
-      }
     }
+    
   ],
   "outputs": {
     "vmFqdn": {

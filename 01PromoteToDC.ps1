@@ -75,3 +75,45 @@ try {
     Write-Error "An error occurred during promotion: $_"
     exit 1
 }
+
+$postRebootScript = @"
+# Configure DNS
+Set-DnsClientServerAddress -InterfaceIndex (Get-NetAdapter | Where-Object {`$_.Status -eq "Up"}).ifIndex -ServerAddresses ("127.0.0.1", "168.63.129.16")
+
+# Configure SCP for Azure AD Hybrid Join
+Import-Module ActiveDirectory
+try {
+    `$domainDN = (Get-ADDomain).DistinguishedName
+    `$configDN = "CN=Configuration,`$domainDN"
+    `$servicesDN = "CN=Services,`$configDN"
+    `$scpDN = "CN=62a0ff2e-97b9-4513-943f-0d221bd30080,`$servicesDN"
+    
+    # Check if SCP already exists
+    if (-not (Get-ADObject -Filter {distinguishedName -eq `$scpDN} -ErrorAction SilentlyContinue)) {
+        # Create SCP object
+        New-ADObject -Name "62a0ff2e-97b9-4513-943f-0d221bd30080" -Type "serviceConnectionPoint" -Path `$servicesDN -OtherAttributes @{
+            "keywords" = "azureADName:yourtenant.onmicrosoft.com"
+            "serviceClassName" = "ms-DS-Device-Registration-Service"
+        }
+        Write-EventLog -LogName Application -Source "Application" -EventId 1000 -Message "SCP configured successfully for Azure AD Hybrid Join"
+    }
+} catch {
+    Write-EventLog -LogName Application -Source "Application" -EventId 1001 -Message "Failed to configure SCP: `$_"
+}
+
+# Clean up scheduled task
+Unregister-ScheduledTask -TaskName "ConfigureDNSAndSCP" -Confirm:`$false
+"@
+
+    $scriptPath = "C:\Windows\Temp\PostDCConfig.ps1"
+    $postRebootScript | Out-File -FilePath $scriptPath -Encoding UTF8
+
+    $action = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scriptPath`""
+    $trigger = New-ScheduledTaskTrigger -AtStartup
+    $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+    Register-ScheduledTask -TaskName "ConfigureDNSAndSCP" -Action $action -Trigger $trigger -Principal $principal -Description "Configure DNS and SCP after DC promotion"
+
+ catch {
+    Write-Error "An error occurred during promotion: $_"
+    exit 1
+}
