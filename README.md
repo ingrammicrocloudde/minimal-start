@@ -45,6 +45,14 @@ Please **click the button below** to deploy the AVD template to your Azure subsc
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fingrammicrocloudde%2Fminimal-start%2Frefs%2Fheads%2Fmain%2F06deployavd.json)
 
+To join the session host to the hostpool you will need 3 components: 
+
+- a Registration Key (obtained form Azure portal / Hostpool section)
+- Azure Virtual Desktop Agent (<https://go.microsoft.com/fwlink/?linkid=2310011>)
+- Azure Virtual Desktop Agent Bootloader (<https://go.microsoft.com/fwlink/?linkid=2311028>)
+
+This will add the VM as a session host.
+
 To get access to the AVD functionality the following roles must be assigned.
 
 - Desktop Virtualization Application Group Reader (aebf23d0-b568-4e86-b8f9-fe83a2c6ab55)
