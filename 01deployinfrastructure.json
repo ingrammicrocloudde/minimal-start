@@ -108,7 +108,10 @@
       "name": "[variables('publicIPName')]",
       "location": "[parameters('location')]",
       "properties": {
-        "publicIPAllocationMethod": "Dynamic"
+        "publicIPAllocationMethod": "Static",
+        "dnsSettings": {
+          "domainNameLabel": "[toLower(concat(parameters('vmName'), 'dns'))]"
+        }
       }
     },
     {
@@ -190,7 +193,7 @@
     },
     "hostname": {
       "type": "string",
-      "value": "[reference(variables('publicIPName')).dnsSettings.fqdn]"
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPName'))).dnsSettings.fqdn]"
     }
   }
 }
