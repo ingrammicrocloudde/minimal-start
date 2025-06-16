@@ -14,7 +14,7 @@ This repository contains ARM templates for deploying a minimal environment for s
 - domain join fileshare
 - install FSlogix
 
-## Deploy to Azure
+## Deploy to Azure 01
 
 Click the button below to deploy the base template to your Azure subscription:
 
@@ -28,11 +28,26 @@ You can customize the deployment with these parameters:
 - `hubVnetName` & `spokeVnetName`: Names for your virtual networks
 - `vmName`: Name for your Windows Server VM
 - `adminUsername` & `adminPassword`: Credentials for VM access
-- `fileShareName`: Name for your premium file share
 
 See `parameters.json` for default values and more options.
 
-**Easy Deployment of AVD backend:**
+## Deploy to Azure 02 - simple deployment
+
+Click the button below to deploy the base template to your Azure subscription:
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fingrammicrocloudde%2Fminimal-start%2Frefs%2Fheads%2Fmain%2F01deployinfrastructure.json)
+
+## Parameters 02
+
+You can customize the deployment with these parameters:
+
+- `location`: Azure region for deployment
+- `vnetName`: Name for your virtual network
+- `vmName`: Name for your Windows 11 VM
+- `adminUsername` & `adminPassword`: Credentials for VM access
+
+## Easy Deployment of AVD backend
+
 AVD needs a backend consisting of:
 
 - Hostpool
@@ -45,7 +60,7 @@ Please **click the button below** to deploy the AVD template to your Azure subsc
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fingrammicrocloudde%2Fminimal-start%2Frefs%2Fheads%2Fmain%2F06deployavd.json)
 
-To join the session host to the hostpool you will need 3 components: 
+**To join the session host to the hostpool you will need 3 components:**
 
 - a Registration Key (obtained form Azure portal / Hostpool section)
 - Azure Virtual Desktop Agent (<https://go.microsoft.com/fwlink/?linkid=2310011>)
