@@ -33,7 +33,7 @@ You can customize the deployment with these parameters:
 See `parameters.json` for default values and more options.
 
 **Easy Deployment of AVD backend:**
-AVD needs a backend consiting of:
+AVD needs a backend consisting of:
 
 - Hostpool
 - Application Group
@@ -44,6 +44,14 @@ No need to work your way through the Azure portal.
 Please **click the button below** to deploy the AVD template to your Azure subscription:
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fingrammicrocloudde%2Fminimal-start%2Frefs%2Fheads%2Fmain%2F06deployavd.json)
+
+To join the session host to the hostpool you will need 3 components: 
+
+- a Registration Key (obtained form Azure portal / Hostpool section)
+- Azure Virtual Desktop Agent (<https://go.microsoft.com/fwlink/?linkid=2310011>)
+- Azure Virtual Desktop Agent Bootloader (<https://go.microsoft.com/fwlink/?linkid=2311028>)
+
+This will add the VM as a session host.
 
 To get access to the AVD functionality the following roles must be assigned.
 
