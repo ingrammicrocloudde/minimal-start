@@ -33,7 +33,7 @@ You can customize the deployment with these parameters:
 See `parameters.json` for default values and more options.
 
 **Easy Deployment of AVD backend:**
-AVD needs a backend consiting of:
+AVD needs a backend consisting of:
 
 - Hostpool
 - Application Group
