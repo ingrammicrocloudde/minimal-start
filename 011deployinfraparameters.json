@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "eastus"
+    },
+    "vmName": {
+      "value": "yourhost"
+    },
+    "adminUsername": {
+      "value": "localadmin"
+    },
+    "adminPassword": {
+      "value": "YourSecurePassword123!"
+    },
+    "vmSize": {
+      "value": "Standard_D2s_v3"
+    },
+    "vnetName": {
+      "value": "vnet-simple"
+    }
+  }
+}
