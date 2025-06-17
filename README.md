@@ -73,7 +73,7 @@ To get access to the AVD functionality the following roles must be assigned.
 - Desktop Virtualization Application Group Reader (aebf23d0-b568-4e86-b8f9-fe83a2c6ab55)
 - Desktop Virtualization Workspace Reader (0fa44ee9-7a7d-466b-9bb2-2bf446b1204d)
 - Desktop Virtualization Contributor (082f0a83-3be5-4ba1-904c-961cca79b387)
-- Virtual Machine Administrator  (1c0163c0-47e6-4577-8991-ea5c82e286e4)
+- Virtual Machine Administrator Login (1c0163c0-47e6-4577-8991-ea5c82e286e4)
 - Virtual Machine User Login (fb879df8-f326-4884-b1cf-06f3ad86be52)
 
 It is highly recommended to create an Entra Id group for the AVD users and a second group for the AVD administrators. These groups should be assigned the proper roles.
