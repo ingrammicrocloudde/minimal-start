@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$DomainName = "example.com",
+    [string]$DomainName = "azureessentials.de",
     
     [string]$SafeModeAdministratorPassword = "YourSecurePassword123!",
 
@@ -80,7 +80,12 @@ $postRebootScript = @"
 # Configure DNS
 Set-DnsClientServerAddress -InterfaceIndex (Get-NetAdapter | Where-Object {`$_.Status -eq "Up"}).ifIndex -ServerAddresses ("127.0.0.1", "168.63.129.16")
 
-# Configure SCP for Azure AD Hybrid Join
+
+
+# Clean up scheduled task
+Unregister-ScheduledTask -TaskName "ConfigureDNSAndSCP" -Confirm:`$false
+"@
+<# Configure SCP for Azure AD Hybrid Join
 Import-Module ActiveDirectory
 try {
     `$domainDN = (Get-ADDomain).DistinguishedName
@@ -99,12 +104,7 @@ try {
     }
 } catch {
     Write-EventLog -LogName Application -Source "Application" -EventId 1001 -Message "Failed to configure SCP: `$_"
-}
-
-# Clean up scheduled task
-Unregister-ScheduledTask -TaskName "ConfigureDNSAndSCP" -Confirm:`$false
-"@
-
+}#>
     $scriptPath = "C:\Windows\Temp\PostDCConfig.ps1"
     $postRebootScript | Out-File -FilePath $scriptPath -Encoding UTF8
 
