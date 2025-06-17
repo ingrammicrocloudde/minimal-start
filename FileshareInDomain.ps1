@@ -1,5 +1,6 @@
 param(
-    [string]$ResourceGroupName = "new-week-rg",
+    [string]$ResourceGroupName = "avd-bootcamp-rg
+",
     [string]$RandomSuffix = (Get-Random -Minimum 1000 -Maximum 9999),
     [string]$StorageAccountName = "sanavd$RandomSuffix",
     [string]$ShareName = "share",

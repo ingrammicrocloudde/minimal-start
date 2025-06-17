@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$DomainName = "example.com",
+    [string]$DomainName = "azureessentials.de",
     
     [string]$DomainAdminUsername = "username",
     
